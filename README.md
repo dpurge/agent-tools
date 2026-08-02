@@ -82,7 +82,7 @@ agent-tools/
 
 ### Skills are the foundation
 
-Use the Agent Skills standard as your canonical format:
+Use the Agent Skills standard as the canonical format:
 
 Example: `core/skills/code-review/SKILL.md`
 
@@ -203,8 +203,9 @@ Example packages:
 ```txt
 @dpurge/agent-tools
 @dpurge/agent-tools-opencode
-@dpurge/agent-tools-pi
 @dpurge/agent-tools-claude
+@dpurge/pi-agent-tools-extension
+@dpurge/agent-tools-pi
 ```
 
 Installation:
@@ -212,6 +213,7 @@ Installation:
 ```sh
 claude plugin install @dpurge/agent-tools-claude
 opencode plugin install @dpurge/agent-tools-opencode # or: npm install -g @dpurge/agent-tools-opencode
+pi install npm:@dpurge/pi-agent-tools-extension
 pi install npm:@dpurge/agent-tools-pi
 ```
 

@@ -1,0 +1,34 @@
+schemaVersion: 1
+
+name: agent-tools
+version: 0.1.0
+
+skills:
+  - architecture-review
+  - code-review
+
+agents:
+  - security-reviewer
+  - explorer
+
+workflows:
+  - feature-development
+  - bug-investigation
+
+extensions:
+  mcp:
+    - rosetta
+    - github
+
+targets:
+  claude:
+    adapter: adapters/claude-code
+    package: "@dpurge/claude-agent-tools-plugin"
+
+  opencode:
+    adapter: adapters/opencode
+    package: "@dpurge/opencode-agent-tools-plugin"
+
+  pi:
+    adapter: adapters/pi
+    package: "@dpurge/pi-agent-tools-extension"

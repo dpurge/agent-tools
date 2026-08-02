@@ -1,0 +1,63 @@
+{
+  "name": "@dpurge/claude-agent-tools-plugin",
+  "version": "0.1.0",
+  "description": "Claude Code plugin providing agent-tools skills, agents, workflows, MCP integrations, and commands.",
+  "type": "module",
+  "license": "MIT",
+
+  "author": {
+    "name": "dpurge"
+  },
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dpurge/agent-tools.git",
+    "directory": "packages/claude-agent-tools-plugin"
+  },
+
+  "keywords": [
+    "claude",
+    "claude-code",
+    "ai-agent",
+    "agent-tools",
+    "skills",
+    "workflows",
+    "mcp",
+    "llm"
+  ],
+
+  "files": [
+    "plugin.json",
+    "skills",
+    "agents",
+    "commands",
+    "workflows",
+    "mcp",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "main": "./plugin.json",
+
+  "exports": {
+    ".": "./plugin.json"
+  },
+
+  "claude": {
+    "plugin": "./plugin.json"
+  },
+
+  "scripts": {
+    "test": "node -e \"JSON.parse(require('fs').readFileSync('plugin.json'))\"",
+    "prepare": "npm run build",
+    "build": "node scripts/build.js"
+  },
+
+  "dependencies": {
+    "yaml": "^2.7.0"
+  },
+
+  "engines": {
+    "node": ">=20"
+  }
+}

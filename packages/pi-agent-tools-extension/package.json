@@ -1,0 +1,63 @@
+{
+  "name": "@dpurge/pi-agent-tools-extension",
+  "version": "0.1.0",
+  "description": "Pi extension providing agent-tools skills, workflows, commands, and orchestration helpers.",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "dpurge"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dpurge/agent-tools.git",
+    "directory": "packages/pi-agent-tools-extension"
+  },
+
+  "keywords": [
+    "pi",
+    "pi-coding-agent",
+    "ai-agent",
+    "agent-tools",
+    "skills",
+    "workflows",
+    "mcp",
+    "llm"
+  ],
+
+  "files": [
+    "index.js",
+    "skills",
+    "workflows",
+    "agents",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "main": "./index.js",
+
+  "exports": {
+    ".": "./index.js"
+  },
+
+  "pi": {
+    "extension": "./index.js"
+  },
+
+  "scripts": {
+    "test": "node --check index.js",
+    "prepare": "npm run build",
+    "build": "node scripts/build.js"
+  },
+
+  "dependencies": {
+    "yaml": "^2.7.0"
+  },
+
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": ">=0.40.0"
+  },
+
+  "engines": {
+    "node": ">=20"
+  }
+}

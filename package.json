@@ -1,0 +1,89 @@
+{
+  "name": "@dpurge/agent-tools",
+  "version": "0.1.0",
+  "description": "Portable AI agent toolkit with skills, subagents, workflows, and rules for Claude Code, OpenCode, and Pi.",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "author": "DPurge",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dpurge/agent-tools.git"
+  },
+  "keywords": [
+    "ai-agent",
+    "agents",
+    "skills",
+    "claude-code",
+    "opencode",
+    "pi",
+    "mcp",
+    "llm",
+    "developer-tools"
+  ],
+
+  "bin": {
+    "agent-tools": "./scripts/cli.js"
+  },
+
+  "files": [
+    "core",
+    "adapters",
+    "extensions",
+    "scripts",
+    "agent-tools.yaml",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "scripts": {
+    "validate": "node scripts/validate.js",
+    "build": "node scripts/build.js",
+    "install:claude": "node scripts/install-claude.js",
+    "install:opencode": "node scripts/install-opencode.js",
+    "install:pi": "node scripts/install-pi.js",
+    "test": "npm run validate"
+  },
+
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "front-matter": "^4.0.2",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.24.2"
+  },
+
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.5.0",
+    "typescript": "^5.7.3"
+  },
+
+  "engines": {
+    "node": ">=20"
+  },
+
+  "agentKit": {
+    "schemaVersion": "1",
+
+    "targets": {
+      "claude": {
+        "adapter": "./adapters/claude-code"
+      },
+      "opencode": {
+        "adapter": "./adapters/opencode"
+      },
+      "pi": {
+        "adapter": "./adapters/pi"
+      }
+    },
+
+    "directories": {
+      "skills": "core/skills",
+      "agents": "core/agents",
+      "workflows": "core/workflows",
+      "rules": "core/rules"
+    }
+  }
+}

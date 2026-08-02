@@ -1,0 +1,32 @@
+{
+  "name": "filesystem",
+  "description": "Filesystem MCP integration for controlled file and directory access.",
+  "version": "1.0.0",
+
+  "type": "mcp-server",
+
+  "server": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-filesystem",
+      "${WORKSPACE_ROOT}"
+    ]
+  },
+
+  "env": {
+    "WORKSPACE_ROOT": "."
+  },
+
+  "capabilities": [
+    "read_files",
+    "write_files",
+    "list_directories",
+    "search_files"
+  ],
+
+  "permissions": {
+    "read": true,
+    "write": true
+  }
+}

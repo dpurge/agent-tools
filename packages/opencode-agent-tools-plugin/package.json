@@ -1,0 +1,66 @@
+{
+  "name": "@dpurge/opencode-agent-tools-plugin",
+  "version": "0.1.0",
+  "description": "OpenCode plugin providing agent-tools skills, agents, workflows, MCP integrations, and commands.",
+  "type": "module",
+  "license": "MIT",
+
+  "author": {
+    "name": "dpurge"
+  },
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dpurge/agent-tools.git",
+    "directory": "packages/opencode-agent-tools-plugin"
+  },
+
+  "keywords": [
+    "opencode",
+    "ai-agent",
+    "agent-tools",
+    "skills",
+    "workflows",
+    "mcp",
+    "llm"
+  ],
+
+  "files": [
+    "index.js",
+    "skills",
+    "agents",
+    "workflows",
+    "commands",
+    "mcp",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "main": "./index.js",
+
+  "exports": {
+    ".": "./index.js"
+  },
+
+  "opencode": {
+    "plugin": "./index.js"
+  },
+
+  "scripts": {
+    "test": "node --check index.js",
+    "prepare": "npm run build",
+    "build": "node scripts/build.js"
+  },
+
+  "dependencies": {
+    "yaml": "^2.7.0"
+  },
+
+  "peerDependencies": {
+    "opencode-ai": ">=1.18.0"
+  },
+
+  "engines": {
+    "node": ">=20"
+  }
+}

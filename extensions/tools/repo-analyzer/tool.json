@@ -1,0 +1,53 @@
+{
+  "name": "repo-analyzer",
+  "description": "Analyzes repository structure, dependencies, architecture patterns, and project conventions.",
+  "version": "1.0.0",
+
+  "type": "agent-tool",
+
+  "runtime": {
+    "command": "node",
+    "entrypoint": "index.js"
+  },
+
+  "capabilities": [
+    "repository_structure",
+    "dependency_analysis",
+    "architecture_detection",
+    "convention_discovery"
+  ],
+
+  "inputs": {
+    "workspace": {
+      "type": "path",
+      "required": true,
+      "description": "Root directory of the repository to analyze."
+    },
+    "depth": {
+      "type": "number",
+      "required": false,
+      "default": 3,
+      "description": "Maximum directory traversal depth."
+    }
+  },
+
+  "outputs": {
+    "format": "json",
+    "contains": [
+      "structure",
+      "languages",
+      "frameworks",
+      "dependencies",
+      "patterns",
+      "recommendations"
+    ]
+  },
+
+  "permissions": {
+    "filesystem": {
+      "read": true,
+      "write": false
+    },
+    "network": false
+  }
+}

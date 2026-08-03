@@ -1,7 +1,7 @@
 schemaVersion: 1
 
 name: agent-tools
-version: 0.1.0
+version: 0.1.1
 
 # Model routing — cost-effective OpenRouter models (single source of truth).
 # Agents' model_preference lists slugs from these tiers; adapters wire the host

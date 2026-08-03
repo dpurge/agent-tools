@@ -1,6 +1,6 @@
 {
   "name": "@dpurge/opencode-agent-tools-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenCode plugin providing agent-tools skills, agents, workflows, MCP integrations, and commands.",
   "type": "module",
   "license": "MIT",

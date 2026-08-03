@@ -194,6 +194,19 @@ async function installWorkflows() {
   );
 }
 
+async function installCommands() {
+  await copyDir(
+    path.join(
+      ROOT,
+      "core/commands"
+    ),
+    path.join(
+      OPENCODE_DIR,
+      "commands"
+    )
+  );
+}
+
 async function installRules() {
   const rulesDir =
     path.join(
@@ -301,6 +314,7 @@ async function main() {
   await installSkills();
   await installAgents();
   await installWorkflows();
+  await installCommands();
   await installRules();
   await installPlugin();
   await mergeConfig(manifest);
@@ -314,6 +328,7 @@ Installed:
   .opencode/skills
   .opencode/agents
   .opencode/workflows
+  .opencode/commands
   .opencode/rules
   .opencode/plugins/agent-tools
   .opencode/opencode.json

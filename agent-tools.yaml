@@ -3,22 +3,113 @@ schemaVersion: 1
 name: agent-tools
 version: 0.1.0
 
+# Model routing — cost-effective OpenRouter models (single source of truth).
+# Agents' model_preference lists slugs from these tiers; adapters wire the host
+# to OpenRouter. free_policy "balanced": simple roles (researcher, technical-writer)
+# try a free model first; heavier roles use cheap paid models first.
+# Slugs/prices verified on openrouter.ai (Aug 2026) — re-check periodically; free
+# tiers are rate-limited and may train on submitted data.
+models:
+  provider: openrouter
+  default: "deepseek/deepseek-v4-flash"
+  free_policy: balanced
+  tiers:
+    cheap: "deepseek/deepseek-v4-flash"          # ~$0.09/$0.18 per M — default workhorse
+    long_context: "minimax/minimax-m3"            # ~$0.24/$0.96 — 1M ctx, agentic/tool use
+    strong: "z-ai/glm-5.2"                        # ~$0.63/$1.98 — hard reasoning / long-horizon coding
+    multilingual: "qwen/qwen3.5-plus-20260420"    # strong multilingual all-rounder
+    free: "nvidia/nemotron-3-ultra-550b-a55b:free"  # $0 — rate-limited
+
 skills:
   - architecture-review
   - code-review
+  - security-review
+  - doc-review
+  - research-core
+  - research-web
+  - research-typst
+  - anki-comp
+  - anki-vocabulary
+  - phraseforge-core
+  - phraseforge-ebook
+  - phraseforge-lang-apc
+  - phraseforge-lang-arb
+  - phraseforge-lang-arz
+  - phraseforge-lang-aze
+  - phraseforge-lang-bul
+  - phraseforge-lang-ces
+  - phraseforge-lang-cmn-hans
+  - phraseforge-lang-cmn-hant
+  - phraseforge-lang-dan
+  - phraseforge-lang-deu
+  - phraseforge-lang-ell
+  - phraseforge-lang-eng
+  - phraseforge-lang-epo
+  - phraseforge-lang-fas
+  - phraseforge-lang-fin
+  - phraseforge-lang-fra
+  - phraseforge-lang-grc
+  - phraseforge-lang-heb
+  - phraseforge-lang-hin
+  - phraseforge-lang-hrv
+  - phraseforge-lang-hun
+  - phraseforge-lang-ind
+  - phraseforge-lang-ita
+  - phraseforge-lang-jpn
+  - phraseforge-lang-kaz
+  - phraseforge-lang-kor
+  - phraseforge-lang-lat
+  - phraseforge-lang-lit
+  - phraseforge-lang-nld
+  - phraseforge-lang-por
+  - phraseforge-lang-ron
+  - phraseforge-lang-rus
+  - phraseforge-lang-spa
+  - phraseforge-lang-srp
+  - phraseforge-lang-tat
+  - phraseforge-lang-tgk
+  - phraseforge-lang-tur
+  - phraseforge-lang-uig
+  - phraseforge-lang-ukr
+  - phraseforge-lang-uzb
+  - phraseforge-lang-vie
+  - phraseforge-lang-yid
+  - fiction-writing
+  - fiction-review
 
 agents:
-  - security-reviewer
-  - explorer
+  - architect
+  - engineer
+  - researcher
+  - reviewer
+  - technical-writer
+  - translator
 
 workflows:
   - feature-development
   - bug-investigation
+  - release
+  - doc-review
+  - research
+  - anki
+  - ebook
+  - story
+
+commands:
+  - feature-development
+  - bug-investigation
+  - release
+  - doc-review
+  - research
+  - anki
+  - ebook
+  - story
 
 extensions:
   mcp:
     - rosetta
     - github
+    - filesystem
 
 targets:
   claude:

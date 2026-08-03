@@ -3,3 +3,21 @@ dist/
 .claude/
 .opencode/
 .pi/
+
+# Python bytecode from the skill tools (run via `uv run --script`)
+__pycache__/
+*.pyc
+
+# Build output assembled into packages/ by scripts/build.js.
+# Committed package sources are only package.json, index.js and *.test.js.
+packages/*/skills/
+packages/*/agents/
+packages/*/workflows/
+packages/*/rules/
+packages/*/commands/
+packages/*/mcp/
+packages/*/settings.json
+packages/*/opencode.json
+packages/*/README.md
+packages/*/LICENSE
+packages/claude-agent-tools-plugin/plugin.json

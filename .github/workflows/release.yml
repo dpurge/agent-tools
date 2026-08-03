@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Bump, tag & publish GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compute and apply new version
+        id: version
+        run: |
+          set -e
+          NEW="$(npm version "${{ inputs.bump }}" --no-git-tag-version)"
+          NEW="${NEW#v}"
+          node scripts/set-version.js "$NEW"
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$NEW"
+
+      - name: Validate, build & test
+        run: |
+          npm run validate
+          npm run build
+          npm run test:packages
+
+      - name: Pack tarballs
+        run: |
+          set -e
+          mkdir -p release
+          npm pack --pack-destination release
+          for dir in packages/*/; do
+            ( cd "$dir" && npm pack --pack-destination "$GITHUB_WORKSPACE/release" )
+          done
+          ls -1 release
+
+      - name: Commit and tag
+        run: |
+          set -e
+          VERSION="${{ steps.version.outputs.version }}"
+          git add -A
+          git commit -m "Release v$VERSION"
+          git tag "v$VERSION"
+          git push origin HEAD:main
+          git push origin "v$VERSION"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          gh release create "v$VERSION" release/*.tgz \
+            --title "v$VERSION" \
+            --generate-notes

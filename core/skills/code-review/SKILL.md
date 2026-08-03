@@ -194,3 +194,14 @@ When relevant, inspect:
 - API compatibility
 - logging and monitoring
 - deployment impact
+
+## Resources
+
+- `references/checklist.md` — a condensed review checklist to work through.
+- `scripts/analyze.py` — a stdlib-only helper that flags oversized files, long
+  lines, and leftover `TODO`/`FIXME` markers. Run it against the changed paths
+  for objective signals before the manual review:
+
+  ```sh
+  python3 scripts/analyze.py <path> [--max-lines N] [--max-line-length N]
+  ```

@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Validate, build & pack
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: ["20.x", "22.x"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate wiring
+        run: npm run validate
+
+      - name: Assemble packages
+        run: npm run build
+
+      - name: Test packages
+        run: npm run test:packages
+
+      - name: Verify packages are packable
+        run: |
+          set -e
+          npm pack --dry-run
+          for dir in packages/*/; do
+            echo "--- packing $dir"
+            ( cd "$dir" && npm pack --dry-run )
+          done

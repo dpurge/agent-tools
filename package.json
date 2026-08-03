@@ -39,10 +39,13 @@
   "scripts": {
     "validate": "node scripts/validate.js",
     "build": "node scripts/build.js",
+    "set-version": "node scripts/set-version.js",
     "install:claude": "node scripts/install-claude.js",
     "install:opencode": "node scripts/install-opencode.js",
     "install:pi": "node scripts/install-pi.js",
-    "test": "npm run validate"
+    "install:dev": "npm run build && npm link",
+    "test:packages": "node scripts/test-packages.js",
+    "test": "npm run validate && npm run test:packages"
   },
 
   "dependencies": {

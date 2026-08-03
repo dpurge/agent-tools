@@ -194,6 +194,19 @@ async function installWorkflows() {
   );
 }
 
+async function installCommands() {
+  await copyDir(
+    path.join(
+      ROOT,
+      "core/commands"
+    ),
+    path.join(
+      PI_DIR,
+      "commands"
+    )
+  );
+}
+
 async function installRules() {
   const rulesDir =
     path.join(
@@ -287,6 +300,7 @@ async function main() {
   await installSkills();
   await installAgents();
   await installWorkflows();
+  await installCommands();
   await installRules();
   await installExtension();
   await mergeConfig(manifest);
@@ -300,6 +314,7 @@ Installed:
   .pi/skills
   .pi/agents
   .pi/workflows
+  .pi/commands
   .pi/rules
   .pi/extensions/agent-tools
   .pi/config.json

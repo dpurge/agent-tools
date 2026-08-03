@@ -27,8 +27,11 @@
   "files": [
     "index.js",
     "skills",
-    "workflows",
     "agents",
+    "workflows",
+    "commands",
+    "rules",
+    "mcp",
     "README.md",
     "LICENSE"
   ],
@@ -44,13 +47,7 @@
   },
 
   "scripts": {
-    "test": "node --check index.js",
-    "prepare": "npm run build",
-    "build": "node scripts/build.js"
-  },
-
-  "dependencies": {
-    "yaml": "^2.7.0"
+    "test": "node --test"
   },
 
   "peerDependencies": {

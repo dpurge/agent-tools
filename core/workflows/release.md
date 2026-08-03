@@ -3,241 +3,51 @@ name: release
 description: Workflow for preparing, validating, documenting, and delivering software releases safely.
 version: 1.0.0
 agents:
-  - backend-expert
-  - frontend-expert
-  - security-reviewer
+  - engineer
+  - reviewer
 skills:
   - code-review
   - architecture-review
+  - security-review
 ---
 
 # Release Workflow
 
-## Purpose
-
-Provide a consistent process for preparing software releases with confidence, including validation, risk assessment, documentation, and operational readiness.
-
-This workflow helps teams deliver changes safely and reduce release-related failures.
-
-## When to Use
-
-Use this workflow when:
-
-- preparing a production release
-- creating a versioned release
-- deploying major changes
-- publishing packages
-- completing a milestone
-
-## Workflow Steps
-
-## 1. Review Release Scope
-
-Collect:
-
-- included changes
-- related issues
-- completed features
-- bug fixes
-- known limitations
-
-Identify:
-
-- affected systems
-- affected users
-- breaking changes
-- migration requirements
-
-Confirm:
-
-- release goals
-- expected outcomes
-- ownership responsibilities
-
-## 2. Analyze Changes
-
-Review:
-
-- changed files
-- architecture impact
-- dependency updates
-- configuration changes
-- database changes
-
-Use:
-
-- `repo-analyzer` tool when available
-- `architecture-review` skill
-- `code-review` skill
-
-Evaluate:
-
-- maintainability
-- reliability
-- security
-- compatibility
-
-## 3. Perform Security Review
-
-Use:
-
-- `security-reviewer` agent
-
-Check:
-
-- authentication changes
-- authorization changes
-- sensitive data handling
-- dependency vulnerabilities
-- exposed configuration
-
-Verify:
-
-- secrets are not included
-- security controls remain effective
-- production configuration is safe
-
-## 4. Validate Quality
-
-Run:
-
-- automated tests
-- integration tests
-- build checks
-- static analysis
-- dependency checks
-
-Confirm:
-
-- expected behavior
-- no regressions
-- acceptable performance
-
-Review:
-
-- error handling
-- logging
-- monitoring readiness
-
-## 5. Prepare Release Artifacts
-
-Create or update:
-
-- version information
-- release notes
-- changelog entries
-- migration instructions
-- deployment documentation
-
-Verify:
-
-- package metadata
-- generated artifacts
-- documentation links
-- installation instructions
-
-## 6. Prepare Deployment
-
-Confirm:
-
-- deployment steps
-- environment configuration
-- database migrations
-- infrastructure changes
-- rollback procedure
-
-Define:
-
-- deployment owner
-- verification steps
-- rollback triggers
-
-## 7. Execute Release
-
-During release:
-
-- follow deployment plan
-- monitor system health
-- verify critical workflows
-- record unexpected issues
-
-Check:
-
-- application availability
-- error rates
-- performance metrics
-- user-facing behavior
-
-## 8. Post-Release Verification
-
-Validate:
-
-- release is available
-- integrations work correctly
-- monitoring is active
-- users can complete critical workflows
-
-Review:
-
-- logs
-- alerts
-- support feedback
-
-## 9. Document Release
-
-Produce:
-
-```text
-Version:
-Release Date:
-Summary:
-Changes:
-Breaking Changes:
-Migration Notes:
-Known Issues:
-Rollback Plan:
-
-Capture:
-
-lessons learned
-follow-up improvements
-operational observations
-Output Format
-
-Final release report:
-
-Release Summary
-
-Overview of delivered changes.
-
-Changes Included
-
-List features, fixes, and improvements.
-
-Validation
-
-Describe tests and verification.
-
-Security Review
-
-Summarize security checks.
-
-Deployment
-
-Describe deployment process and status.
-
-Post-Release Actions
-
-List monitoring results and follow-ups.
-
-Success Criteria
-
-The workflow is complete when:
-
-release scope is confirmed
-changes are reviewed
-security risks are assessed
-validation passes
-deployment plan exists
-release documentation is complete
-post-release checks succeed
+This workflow is runnable as the `/release` slash command. The authoritative,
+step-by-step instructions live in
+[`core/commands/release.md`](../commands/release.md) so there is a single source
+of truth.
+
+## When to use
+
+- preparing a production or versioned release
+- publishing packages or completing a milestone
+- deploying significant changes
+
+## Phases (summary)
+
+1. **Review scope** — included changes, breaking changes, migration needs.
+2. **Analyze changes** — changed files, dependencies, config, and architecture
+   impact (`code-review`, `architecture-review` skills).
+3. **Security review** — `reviewer` with the `security-review` skill checks auth,
+   secrets, and dependency risk.
+4. **Validate quality** — `engineer` runs build, tests, and static analysis, and
+   prepares the version bump and release notes.
+5. **Approval gate — publish** — the human reviews results and the exact publish
+   plan (version, tag, artifacts) and explicitly approves before any tag, push, or
+   publish.
+6. **Execute & verify** — follow the publish plan; confirm the release is
+   available and integrations work.
+7. **Document** — Version, Date, Changes, Breaking Changes, Migration, Rollback.
+
+## Roles
+
+- `engineer` — build, tests, and release artifacts.
+- `reviewer` — security and change review (with the `security-review` skill).
+
+## Success criteria
+
+- release scope confirmed and changes reviewed
+- security risks assessed
+- validation passes before publishing
+- publish approved by a human; release documented

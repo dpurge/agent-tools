@@ -198,7 +198,7 @@ async function installCommands() {
   await copyDir(
     path.join(
       ROOT,
-      "adapters/claude-code/templates/commands"
+      "core/commands"
     ),
     path.join(
       CLAUDE_DIR,

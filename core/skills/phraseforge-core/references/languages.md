@@ -67,7 +67,7 @@ this automatically — you just set `script` correctly.
 
 ## Scripts that need a transcription section
 
-Any script other than `latn`, `cyrl`, `grek`. The exact romanization system
+Any script other than `latn`, `cyrl`, `grek`, `kore`. The exact romanization system
 (e.g. DIN 31635 for Arabic, Hanyu Pinyin for Mandarin, Hepburn for Japanese,
 Revised Romanization for Korean) is specified by the matching
 `phraseforge-lang-<iso>` skill.

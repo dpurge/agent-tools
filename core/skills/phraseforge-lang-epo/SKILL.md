@@ -3,6 +3,12 @@ name: phraseforge-lang-epo
 description: Esperanto (Esperanto, ISO 639-3 epo) language conventions for PhraseForge lessons. Codes, vocabulary shape (systematic morphology, no irregular forms), tag conventions, and notes. Load whenever a PhraseForge lesson targets Esperanto.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Esperanto (epo) language conventions
 
 ## Codes
@@ -16,7 +22,7 @@ Not needed. Esperanto uses Latin script with a circumflex supersign: `ĉ ĝ ĥ �
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Esperanto-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Esperanto-specific rules:
 
 - **Gender:** grammatically genderless by default; feminine marked by suffix `-ino`. Use `{N}` for default nouns; `{N f}` for explicitly feminine forms (with `-ino`).
 - **Systematic word endings:** `-o` (noun), `-a` (adjective), `-e` (adverb), `-i` (verb infinitive). All regular: no irregular conjugation, no irregular plural (always `-j`), no irregular accusative (always `-n`).
@@ -29,12 +35,12 @@ domo {N} = dom
 virino {N f} = kobieta
 infano {N} = dziecko
 
-paroli {V} = mowic
-vidi {V} = widziec
-esti {V} = byc
-havi {V} = miec
+paroli {V} = mówić
+vidi {V} = widzieć
+esti {V} = być
+havi {V} = mieć
 
-malgranda {Adj} = maly
+malgranda {Adj} = mały
 rapide {Adv} = szybko
 ```
 

@@ -36,6 +36,13 @@ function readCommand(name) {
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null;
 }
 
+function renderCommandPrompt(body, args = "") {
+  const request = String(args).trim();
+  return body
+    .replaceAll("$ARGUMENTS", request)
+    .replaceAll("$AGENT_TOOLS_ROOT", CORE);
+}
+
 /**
  * Pi extension entry point (development adapter).
  *
@@ -49,11 +56,21 @@ export default function agentToolsExtension(pi) {
   const workflows = listMarkdown(path.join(CORE, "workflows"));
   const commands = listMarkdown(path.join(CORE, "commands"));
 
-  const notify = message => pi.ui.notify(message);
+  const notify = (message, ctx) => {
+    if (typeof ctx?.ui?.notify === "function") {
+      ctx.ui.notify(message, "info");
+      return;
+    }
+    if (typeof pi?.ui?.notify === "function") {
+      pi.ui.notify(message, "info");
+      return;
+    }
+    console.log(message);
+  };
 
   pi.registerCommand("agent-tools", {
     description: "Show available agent-tools components",
-    async handler() {
+    async handler(args, ctx) {
       notify(
         [
           "agent-tools loaded",
@@ -62,29 +79,30 @@ export default function agentToolsExtension(pi) {
           `Agents: ${agents.join(", ") || "none"}`,
           `Workflows: ${workflows.join(", ") || "none"}`,
           `Commands: ${commands.join(", ") || "none"}`,
-        ].join("\n")
+        ].join("\n"),
+        ctx
       );
     },
   });
 
   pi.registerCommand("skills", {
     description: "List agent-tools skills",
-    async handler() {
-      notify(skills.length ? skills.join("\n") : "No skills installed");
+    async handler(args, ctx) {
+      notify(skills.length ? skills.join("\n") : "No skills installed", ctx);
     },
   });
 
   pi.registerCommand("agents", {
     description: "List agent-tools agents",
-    async handler() {
-      notify(agents.length ? agents.join("\n") : "No agents installed");
+    async handler(args, ctx) {
+      notify(agents.length ? agents.join("\n") : "No agents installed", ctx);
     },
   });
 
   pi.registerCommand("workflows", {
     description: "List agent-tools workflows",
-    async handler() {
-      notify(workflows.length ? workflows.join("\n") : "No workflows installed");
+    async handler(args, ctx) {
+      notify(workflows.length ? workflows.join("\n") : "No workflows installed", ctx);
     },
   });
 
@@ -99,15 +117,19 @@ export default function agentToolsExtension(pi) {
 
     pi.registerCommand(name, {
       description: `Run the ${name} command`,
-      async handler(args = "") {
+      async handler(args = "", ctx) {
         const body = readCommand(name);
         if (!body) {
-          notify(`${name} command is not installed`);
+          notify(`${name} command is not installed`, ctx);
           return;
         }
-        const request = String(args).trim();
-        const header = request ? `Request: ${request}\n\n` : "";
-        notify(header + body);
+        const prompt = renderCommandPrompt(body, args);
+        if (ctx?.isIdle?.() === false) {
+          pi.sendUserMessage(prompt, { deliverAs: "followUp" });
+          notify("Command queued as follow-up", ctx);
+          return;
+        }
+        pi.sendUserMessage(prompt);
       },
     });
   }

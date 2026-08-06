@@ -3,6 +3,12 @@ name: phraseforge-lang-srp
 description: Serbian (Srpski, ISO 639-3 srp) language conventions for PhraseForge lessons. Codes (Cyrillic script as used in phraseforge-data), vocabulary shape (no article + gender/animate), verb aspect tags. Load whenever a PhraseForge lesson targets Serbian.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Serbian (srp) language conventions
 
 ## Codes
@@ -16,7 +22,7 @@ Not required by default (Cyrillic excluded from transcription block). Serbian al
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Serbian-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Serbian-specific rules:
 
 - **Nouns:** no articles; mark gender and animate/inanimate: `{N m an}`, `{N m in}`, `{N f}`, `{N n}`.
 - **Verbs:** infinitive form. Mark aspect: `{V impf}` / `{V pf}`. Add `irreg` for irregular.
@@ -28,12 +34,12 @@ Tag conventions follow `phraseforge-core/references/vocabulary.md`. Serbian-spec
 жена {N f} = kobieta
 дете {N n} = dziecko
 
-говорити {V impf} = mowic
-видети {V pf} = zobaczyc
-бити {V irreg} = byc
-имати {V irreg} = miec
+говорити {V impf} = mówić
+видети {V pf} = zobaczyć
+бити {V irreg} = być
+имати {V irreg} = mieć
 
-мали {Adj} = maly
+мали {Adj} = mały
 брзо {Adv} = szybko
 ```
 

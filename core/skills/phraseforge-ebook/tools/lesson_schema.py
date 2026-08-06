@@ -12,35 +12,59 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class VocabularyEntry(BaseModel):
-    headword: str
+    phrase: str
     grammar: str | None = None
     transcription: str | None = None
     translation: str | None = Field(
         None,
         description=(
             "Polish gloss. Separate multiple senses with '; ' (semicolon + space) — "
-            "e.g. 'wszyscy; wszystkie', 'dzień dobry; cześć'."
+            "e.g. 'wszyscy; wszystkie', 'dzień dobry; cześć'. Keep this field as the "
+            "main gloss text only; if a parenthetical clarification should appear at the "
+            "very end of the rendered line, put it in `notes`, not inside `translation`."
         ),
     )
-    notes: str | None = None
+    notes: str | None = Field(
+        None,
+        description=(
+            "Optional final line-end note. Any parenthetical clarification that should render "
+            "as the final `(...)` at the end of the lesson line belongs here."
+        ),
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_headword(cls, data):
+        if isinstance(data, dict) and "phrase" not in data and "headword" in data:
+            return {**data, "phrase": data["headword"]}
+        return data
 
 
 class ModelEntry(BaseModel):
-    """A model / phrase pattern.
+    """A model phrase.
 
-    `pattern` is the foreign phrase. `translation` (required) is its Polish
+    `phrase` is the foreign phrase. `translation` (required) is its Polish
     gloss; multiple senses separated by '; '. `transcription` is the romanized
-    form, used for non-Latin scripts. `notes` carries optional usage notes,
-    multiple notes joined with '; '.
+    form, used for non-Latin scripts. `notes` carries optional final line-end
+    usage notes.
     """
-    pattern: str
-    translation: str = Field(..., description="Polish gloss for the pattern. Required.")
+    phrase: str
+    translation: str = Field(
+        ..., description="Polish gloss for the phrase. Required; keep end-of-line parenthetical clarifications in `notes`."
+    )
     transcription: str | None = None
     notes: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_pattern(cls, data):
+        if isinstance(data, dict) and "phrase" not in data and "pattern" in data:
+            return {**data, "phrase": data["pattern"]}
+        return data
 
 
 class TextSource(BaseModel):

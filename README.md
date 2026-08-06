@@ -11,6 +11,36 @@ each target.
 `/release`, `/doc-review`), research write-ups (`/research`), Anki flashcards
 (`/anki`), ebooks and language readers (`/ebook`), and fiction (`/story`).
 
+## Quick orientation for contributors and coding agents
+
+If you are changing this repo for the first time, start here:
+
+- **Portable source of truth lives in `core/`** — skills, agents, workflows,
+  commands, and rules are authored there.
+- **`agent-tools.yaml` decides what ships** — if you add or rename a skill,
+  agent, workflow, or command, update the matching manifest list in the same
+  change.
+- **`packages/*` are generated outputs** — only committed sources there are
+  package entrypoints like `package.json`, `index.js`, and tests. Do not hand-edit
+  generated bundled assets.
+- **Build/install logic lives in `scripts/`** — especially `build.js`,
+  `validate.js`, `cli.js`, and `lib/install-common.js`.
+- **Validate before and after edits** — run `npm run validate`, `npm run build`,
+  and `npm test`.
+
+Typical tasks:
+
+- **Add a new portable asset** → create it under `core/`, register it in
+  `agent-tools.yaml`, then run `npm run validate`.
+- **Change what gets packaged/installed** → update manifest-driven logic, not just
+  a generated package directory.
+- **Change installer/build behavior** → prefer shared helpers in
+  `scripts/lib/install-common.js` so build and install stay aligned.
+- **Change docs** → keep `README.md` and `AGENTS.md` accurate.
+
+See also [`AGENTS.md`](AGENTS.md) for a compact repo-specific brief aimed at coding
+agents.
+
 ## Concepts
 
 ### Skills are the foundation
@@ -96,11 +126,12 @@ models:
     free: "nvidia/nemotron-3-ultra-550b-a55b:free"
     # … long_context, multilingual
 
-skills:      # review · research · anki · phraseforge (+42 languages) · fiction
+skills:      # review · research · anki · phraseforge (+42 languages + shared format skill) · fiction
   - code-review
   - research-core
   - phraseforge-core
-  # … 55 total
+  - phraseforge-format
+  # … 56 total
 
 agents:      # architect · engineer · researcher · reviewer · technical-writer · translator
   - reviewer
@@ -210,11 +241,29 @@ npm run build         # assemble the platform packages
 npm test              # validate + run package tests
 ```
 
+## Contributing
+
+For a fast repo-specific brief, see [`AGENTS.md`](AGENTS.md).
+
+When contributing:
+
+- author portable assets under `core/`
+- update `agent-tools.yaml` in the same change when shipped assets change
+- prefer shared script logic in `scripts/lib/install-common.js`
+- run `npm run validate`, `npm run build`, and `npm test` before finishing
+
 ## Installing into a project
 
 ### Using the CLI (recommended for development)
 
-`install:dev` builds the packages and links the `agent-tools` command globally:
+`install:dev` does **not** install the toolkit into a target project by itself. It
+only prepares your local checkout for development use:
+
+1. runs `npm run build`
+2. runs `npm link`
+
+That means it assembles the generated `packages/*` contents and then globally links
+this repo's `agent-tools` CLI so your machine can run the local development version.
 
 ```sh
 npm run install:dev
@@ -225,6 +274,79 @@ agent-tools install claude --force
 agent-tools install claude --target-dir /path/to/project
 ```
 
+The linked `agent-tools install <target>` command rebuilds first, then runs the
+matching installer script for `claude`, `opencode`, or `pi`.
+
+### Editable installs (like `pip install -e`)
+
+For local development, the toolkit also supports an **editable** install mode.
+Unlike the normal copy-based installers, editable installs point the target host at
+this checkout directly, so changes under `core/` are available in later sessions
+without reinstalling or rebuilding.
+
+#### Install
+
+```sh
+npm run install:editable:pi
+npm run install:editable:claude -- --target=/path/to/project
+npm run install:editable:opencode -- --target=/path/to/project
+
+# or, via the linked CLI:
+agent-tools install-editable pi
+agent-tools install-editable claude --target-dir /path/to/project
+agent-tools install-editable opencode --target-dir /path/to/project
+```
+
+Editable mode by target:
+
+- **Pi** — installs a global extension shim under `~/.pi/agent/extensions/`
+  (or project-local under `.pi/extensions/` if `--target` / `--target-dir` is
+  given). That shim loads `adapters/pi/index.js`, which reads the repo's `core/`
+  assets directly at runtime.
+- **Claude Code** — creates symlinks from `.claude/{skills,agents,workflows,commands,rules}`
+  into this repo's `core/` directories and regenerates `CLAUDE.md`.
+- **OpenCode** — creates symlinks from `.opencode/{skills,agents,workflows,commands,rules}`
+  into this repo's `core/` directories, writes `.opencode/opencode.json`, and
+  installs a small plugin shim under `.opencode/plugins/agent-tools/index.js`.
+
+For Pi, new sessions see `core/commands` automatically; for a running Pi session,
+use `/reload` or restart Pi. For Claude/OpenCode, restart the host if a running
+session does not pick up the changed files.
+
+For OpenCode specifically, agent-tools now also tries to register slash commands
+at runtime through the plugin entrypoint instead of relying only on passive
+filesystem discovery.
+
+#### Uninstall
+
+Editable installs can be removed with matching uninstall scripts:
+
+```sh
+npm run uninstall:editable:pi
+npm run uninstall:editable:claude -- --target=/path/to/project
+npm run uninstall:editable:opencode -- --target=/path/to/project
+
+# or, via the linked CLI:
+agent-tools uninstall-editable pi
+agent-tools uninstall-editable claude --target-dir /path/to/project
+agent-tools uninstall-editable opencode --target-dir /path/to/project
+```
+
+What each uninstaller removes:
+
+- **Pi global editable install**
+  - `~/.pi/agent/extensions/agent-tools.ts`
+  - then restart Pi or run `/reload` in a running session
+- **Pi project-local editable install**
+  - `/path/to/project/.pi/extensions/agent-tools.ts`
+- **Claude editable install**
+  - `.claude/{skills,agents,workflows,commands,rules}` symlinks
+  - `CLAUDE.md`
+- **OpenCode editable install**
+  - `.opencode/{skills,agents,workflows,commands,rules}` symlinks
+  - `.opencode/plugins/agent-tools`
+  - removes `./plugins/agent-tools` from `.opencode/opencode.json`
+
 ### Using the install scripts directly
 
 ```sh
@@ -233,16 +355,37 @@ npm run install:opencode -- --target=/path/to/project --force
 npm run install:pi -- --target=/path/to/project
 ```
 
-Each installer copies the skills, agents, workflows, commands, and rules into the
-platform directory (`.claude/`, `.opencode/`, `.pi/`), installs the plugin or
-extension, and wires up platform configuration:
+Each installer copies the manifest-listed skills, agents, workflows, commands, and
+shared rules into the platform directory (`.claude/`, `.opencode/`, `.pi/`),
+installs the plugin or extension, and wires up platform configuration:
 
 - **Claude Code** — generates `CLAUDE.md` from the rules, installs commands to
   `.claude/commands/`, and merges `.claude/settings.json`.
-- **OpenCode** — installs commands to `.opencode/commands/` and merges
-  `.opencode/opencode.json`.
-- **Pi** — installs the extension to `.pi/extensions/agent-tools` and merges
-  `.pi/config.json`.
+- **OpenCode** — installs commands to `.opencode/commands/`, installs the plugin
+  to `.opencode/plugins/agent-tools`, and merges `.opencode/opencode.json`
+  including a plugin entry so the runtime plugin can load.
+- **Pi** — installs manifest-listed assets to `.pi/{skills,agents,workflows,commands}`,
+  copies rules to `.pi/rules/`, installs the extension to
+  `.pi/extensions/agent-tools`, and merges `.pi/config.json`.
+
+#### Pi install layout
+
+A Pi installation ends up with both workspace assets and an extension:
+
+```txt
+.pi/
+├── skills/
+├── agents/
+├── workflows/
+├── commands/
+├── rules/
+├── extensions/
+│   └── agent-tools/
+└── config.json
+```
+
+This split is intentional: the portable authored assets live directly under `.pi/`,
+while the runtime extension code lives under `.pi/extensions/agent-tools`.
 
 ### From a GitHub Release
 
@@ -256,11 +399,16 @@ agent-tools install claude
 ## CLI
 
 ```txt
-agent-tools validate            Validate the toolkit wiring
-agent-tools build               Assemble the platform packages from core/
-agent-tools install <target>    Install into a project (claude | opencode | pi)
-    -f, --force                 overwrite existing files
-    -t, --target-dir <dir>      install location (default: current directory)
+agent-tools validate                    Validate the toolkit wiring
+agent-tools build                       Assemble the platform packages from core/
+agent-tools install <target>            Install into a project (claude | opencode | pi)
+    -f, --force                         overwrite existing files
+    -t, --target-dir <dir>              install location (default: current directory)
+agent-tools install-editable <target>   Install in editable mode (claude | opencode | pi)
+    -f, --force                         overwrite existing files
+    -t, --target-dir <dir>              project-local install location
+agent-tools uninstall-editable <target> Uninstall editable mode (claude | opencode | pi)
+    -t, --target-dir <dir>              project-local install location
 ```
 
 ## npm scripts
@@ -269,11 +417,14 @@ agent-tools install <target>    Install into a project (claude | opencode | pi)
 | ------ | ------- |
 | `npm run validate` | Validate manifest, assets, and package wiring |
 | `npm run build` | Assemble each `packages/*` from `core/` |
-| `npm test` | `validate` + `test:packages` |
+| `npm run test:scripts` | Run root-level script and CLI integration tests |
 | `npm run test:packages` | Run each package's own tests |
+| `npm test` | `validate` + `test:scripts` + `test:packages` |
 | `npm run set-version <version>` | Set one version across root, packages, and manifest |
 | `npm run install:dev` | Build and `npm link` the `agent-tools` CLI |
-| `npm run install:claude` \| `:opencode` \| `:pi` | Install into a target project |
+| `npm run install:claude` \| `:opencode` \| `:pi` | Copy-install into a target project |
+| `npm run install:editable:claude` \| `:opencode` \| `:pi` | Editable install using symlinks/shims |
+| `npm run uninstall:editable:claude` \| `:opencode` \| `:pi` | Remove editable install artifacts |
 
 ## Running on OpenRouter (cost-effective models)
 
@@ -339,21 +490,24 @@ export ANTHROPIC_SMALL_FAST_MODEL="deepseek/deepseek-v4-flash"
 2. Register its name in the matching list in `agent-tools.yaml`.
 3. Run `npm run validate`.
 
-Validation fails if the manifest references a file that doesn't exist, a workflow
-references an unknown agent or skill, or a package is missing its entry point — so
-the manifest and `core/` cannot drift apart silently.
+Validation fails if the manifest references a file that doesn't exist, if `core/`
+contains an unlisted skill/agent/workflow/command, if a workflow references an
+unknown agent or skill, or if a package is missing its entry point — so the
+manifest and `core/` cannot drift apart silently.
 
 ## Build and release
 
-`npm run build` assembles every target: it copies the portable `core/` assets plus
-the MCP configs, the `README` and `LICENSE`, and the adapter configuration into each
-`packages/*` directory, and generates the Claude `plugin.json`. The result is a set
-of self-contained, packable directories.
+`npm run build` assembles every target: it copies only the skills, agents,
+workflows, and commands listed in `agent-tools.yaml`, plus the shared rules, the
+selected MCP configs, the `README` and `LICENSE`, and the adapter configuration into
+each `packages/*` directory, and generates the Claude `plugin.json`. The result is a
+set of self-contained, packable directories.
 
 Releases are cut from GitHub Actions:
 
 - **`.github/workflows/build.yml`** runs on every pull request to `main`:
-  `validate` → `build` → `test:packages` → `npm pack --dry-run` on Node 20 and 22.
+  `validate` → `build` → `test:scripts` → `test:packages` → `npm pack --dry-run`
+  on Node 20 and 22.
 - **`.github/workflows/release.yml`** is triggered manually (`workflow_dispatch`)
   with a `patch` / `minor` / `major` bump. It bumps the version across the
   workspace, builds and tests, packs every package into tarballs, creates the

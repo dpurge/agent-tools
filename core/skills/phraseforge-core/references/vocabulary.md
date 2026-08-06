@@ -3,7 +3,7 @@
 Grammar tags appear inside `{}` in the vocabulary code fence:
 
 ```
-headword {grammar tag} [transcription] = translation (notes)
+phrase {grammar tag} [transcription] = translation (notes)
 ```
 
 Tags are **not yet finalised** — real source data (phraseforge-data) may use a different
@@ -20,7 +20,7 @@ All parts are **space-separated**. Each individual token must contain **only alp
 
 ### Part-of-speech base tags
 
-| Tag | Part of speech | Example headword |
+| Tag | Part of speech | Example phrase |
 |-----|---------------|------------------|
 | `N` | noun | `der Hund {N m}` |
 | `V` | verb | `gehen {V}` |
@@ -45,7 +45,7 @@ All parts are **space-separated**. Each individual token must contain **only alp
 ### Number modifiers
 
 Include `sg` / `pl` only when listing paradigm pairs (e.g. Arabic broken plurals or
-German plural-only nouns). Omit for standard dictionary headwords in singular.
+German plural-only nouns). Omit for standard dictionary/citation forms in singular.
 
 | Tag | Number |
 |-----|--------|
@@ -96,6 +96,6 @@ Arabic paradigm pair (both sg and pl listed separately):
 
 Each `phraseforge-lang-<iso>` skill specifies:
 - Whether gender is relevant and how to mark it.
-- Whether articles are part of the headword (German `der/die/das`, Spanish `el/la`).
+- Whether articles are part of the dictionary/citation form (German `der/die/das`, Spanish `el/la`).
 - Any language-specific tags beyond the above (e.g. Spanish `{V ar}` / `{V er}` / `{V ir}` verb class — no dashes).
-- Whether number should appear on standard headwords (usually no).
+- Whether number should appear on standard dictionary/citation forms (usually no).

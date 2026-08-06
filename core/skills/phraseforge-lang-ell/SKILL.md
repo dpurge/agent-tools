@@ -3,6 +3,12 @@ name: phraseforge-lang-ell
 description: Modern Greek (Neoelliniki, ISO 639-3 ell) language conventions for PhraseForge lessons. Codes, Greek script (no transcription needed), vocabulary shape (gender + articles), verb conjugation class tags, and notes. Load whenever a PhraseForge lesson targets Modern Greek.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Modern Greek (ell) language conventions
 
 ## Codes
@@ -16,9 +22,9 @@ Not required. Greek script is excluded from transcription block per `phraseforge
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Modern Greek-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Modern Greek-specific rules:
 
-- **Nouns:** include the **definite article** (`ο`/`m`, `η`/`f`, `το`/`n`) in the headword. Mark gender: `{N m}` / `{N f}` / `{N n}`.
+- **Nouns:** include the **definite article** (`ο`/`m`, `η`/`f`, `το`/`n`) in the dictionary/citation form. Mark gender: `{N m}` / `{N f}` / `{N n}`.
 - **Verbs:** first-person singular present (dictionary form). Tag `{V}`. Two conjugation classes: `-ω` (type A) and `-άω`/`-ώ` (type B): `{V A}` / `{V B}`. Add `irreg` for irregular.
 - **Adjectives:** masculine singular nominative, tag `{Adj}`.
 
@@ -28,12 +34,12 @@ Tag conventions follow `phraseforge-core/references/vocabulary.md`. Modern Greek
 η γυναίκα {N f} = kobieta
 το παιδί {N n} = dziecko
 
-μιλώ {V B} = mowic
-βλέπω {V A} = widziec
-είμαι {V irreg} = byc
-έχω {V A} = miec
+μιλώ {V B} = mówić
+βλέπω {V A} = widzieć
+είμαι {V irreg} = być
+έχω {V A} = mieć
 
-μικρός {Adj} = maly
+μικρός {Adj} = mały
 γρήγορα {Adv} = szybko
 ```
 

@@ -3,6 +3,12 @@ name: phraseforge-lang-grc
 description: Ancient Greek (Hellenike, ISO 639-3 grc) language conventions for PhraseForge lessons. Codes, Greek script (no transcription needed), vocabulary shape (gender + articles, 5 cases), verb principal parts, and notes. Load whenever a PhraseForge lesson targets Ancient Greek.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Ancient Greek (grc) language conventions
 
 ## Codes
@@ -16,9 +22,9 @@ Not required. Greek script is excluded from transcription block per `phraseforge
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Ancient Greek-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Ancient Greek-specific rules:
 
-- **Nouns:** include the **definite article** (ὁ/m, ἡ/f, τό/n) and the genitive ending as headword — standard dictionary format: `λόγος, -ου, ὁ`. Mark gender: `{N m}` / `{N f}` / `{N n}`. Add declension: `{N m 2}` (2nd), `{N f 1}` (1st), `{N m 3}` (3rd), etc.
+- **Nouns:** include the **definite article** (ὁ/m, ἡ/f, τό/n) and the genitive ending in the dictionary/citation form — standard dictionary format: `λόγος, -ου, ὁ`. Mark gender: `{N m}` / `{N f}` / `{N n}`. Add declension: `{N m 2}` (2nd), `{N f 1}` (1st), `{N m 3}` (3rd), etc.
 - **Verbs:** first-person singular present active indicative (1pp). Tag `{V}`. Note the conjugation class when useful (thematic / athematic / contract).
 - **Adjectives:** masculine singular nominative, tag `{Adj}`.
 
@@ -28,12 +34,12 @@ Tag conventions follow `phraseforge-core/references/vocabulary.md`. Ancient Gree
 ἡ γυνή, γυναικός {N f 3 irreg} = kobieta
 τὸ παιδίον, -ου {N n 2} = dziecko
 
-λέγω {V} = mowic
-ὁράω {V contract} = widziec
-εἰμί {V irreg} = byc
-ἔχω {V} = miec
+λέγω {V} = mówić
+ὁράω {V contract} = widzieć
+εἰμί {V irreg} = być
+ἔχω {V} = mieć
 
-μικρός {Adj} = maly
+μικρός {Adj} = mały
 ταχέως {Adv} = szybko
 ```
 

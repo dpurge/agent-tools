@@ -3,6 +3,12 @@ name: phraseforge-lang-fra
 description: French (Français, ISO 639-3 fra) language conventions for PhraseForge lessons. Codes, vocabulary shape (definite article + gender), verb group tags, and formality rules. Load whenever a PhraseForge lesson targets French.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # French (fra) language conventions
 
 ## Codes
@@ -16,9 +22,9 @@ Not needed. French uses Latin script. Preserve all accents and special character
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. French-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. French-specific rules:
 
-- **Nouns:** include the **definite article** (`le`, `la`, `l'`, `les`) in the headword to show gender. Mark gender: `{N m}` / `{N f}`.
+- **Nouns:** include the **definite article** (`le`, `la`, `l'`, `les`) in the dictionary/citation form to show gender. Mark gender: `{N m}` / `{N f}`.
 - **Verbs:** infinitive form. Tag with verb group: `{V er}` (-er), `{V ir}` (-ir), `{V re}` (-re). Add `irreg` for irregular verbs.
 - **Adjectives:** masculine singular form, tag `{Adj}`.
 
@@ -27,19 +33,19 @@ le chien {N m} = pies
 la maison {N f} = dom
 les enfants {N m pl} = dzieci
 
-parler {V er} = mowic
-finir {V ir} = konczyc
-prendre {V re irreg} = brac
-etre {V irreg} = byc
-avoir {V irreg} = miec
+parler {V er} = mówić
+finir {V ir} = kończyć
+prendre {V re irreg} = brać
+etre {V irreg} = być
+avoir {V irreg} = mieć
 
-petit {Adj} = maly
+petit {Adj} = mały
 vite {Adv} = szybko
 ```
 
 **Multiple senses** separated by `; `:
 ```
-sauver {V er} = ratowac; zbawiac
+sauver {V er} = ratować; zbawiać
 ```
 
 ## Conjugation tables (optional, B1+)

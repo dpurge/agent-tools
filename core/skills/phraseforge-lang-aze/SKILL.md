@@ -3,6 +3,12 @@ name: phraseforge-lang-aze
 description: Azerbaijani (Azerbeycan dili, ISO 639-3 aze) language conventions for PhraseForge lessons — Latin script variant. Codes, vocabulary shape (agglutinative, no gender, vowel harmony), verb/noun tags, and notes. Load whenever a PhraseForge lesson targets Azerbaijani.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Azerbaijani (aze) language conventions
 
 ## Codes
@@ -18,7 +24,7 @@ Not needed. Azerbaijani uses Latin script. Preserve: `ç ğ ı İ ö ş ü ə`.
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Azerbaijani-specific rules closely follow Turkish (the two languages are closely related):
+Field rules follow the injected **phraseforge-entry-format** skill. Azerbaijani-specific rules closely follow Turkish (the two languages are closely related):
 
 - **No grammatical gender, no articles.** All nouns take `{N}`.
 - **Verbs:** infinitive (ending `-maq`/`-mək`). Tag `{V}`. Add `irreg` for irregular.
@@ -27,19 +33,19 @@ Tag conventions follow `phraseforge-core/references/vocabulary.md`. Azerbaijani-
 ```
 it {N} = pies
 ev {N} = dom
-qadin {N} = kobieta
-usaq {N} = dziecko
+qadın {N} = kobieta
+uşaq {N} = dziecko
 
-danismaq {V} = mowic
-gormek {V} = widziec
-olmaq {V} = byc
-sahib olmaq {V} = miec
+danışmaq {V} = mówić
+görmək {V} = widzieć
+olmaq {V} = być
+sahib olmaq {V} = mieć
 
-kicik {Adj} = maly
+kiçik {Adj} = mały
 tez {Adv} = szybko
 ```
 
-(Actual headwords: `it`, `ev`, `qadın`, `uşaq`, `danışmaq`, `görmək`, `olmaq`, `kiçik`, `tez`.)
+(Actual dictionary/citation forms: `it`, `ev`, `qadın`, `uşaq`, `danışmaq`, `görmək`, `olmaq`, `kiçik`, `tez`.)
 
 ## Grammar notes (B1+)
 

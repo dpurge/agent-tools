@@ -3,6 +3,12 @@ name: phraseforge-lang-spa
 description: Spanish (Español, ISO 639-3 spa) language conventions for PhraseForge lessons. Defines codes, transcription (none — Latin script), vocabulary entry shape (article + gender), verb conjugation patterns, and formality conventions. Load whenever a PhraseForge lesson targets Spanish.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Spanish (spa) language conventions
 
 ## Codes
@@ -16,27 +22,27 @@ Not needed. Spanish uses Latin script. Render `ñ`, accented vowels (`á é í �
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Tags use only alphanumeric characters, are space-separated, and are case-sensitive. Spanish-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Spanish-specific rules:
 
-- **Nouns:** include the **definite article** in the headword, mark gender. Use `{N m}` / `{N f}` for singular dictionary entries; add `pl` only when listing the plural form separately.
+- **Nouns:** include the **definite article** in the dictionary/citation form, and mark gender. Use `{N m}` / `{N f}` for singular dictionary entries; add `pl` only when listing the plural form separately.
 - **Verbs:** infinitive form. Optionally tag with verb class: `{V ar}`, `{V er}`, `{V ir}`. Irregular or stem-changing: add `irreg` (`{V ar irreg}`).
 - **Adjectives:** masculine singular form (standard dictionary form), tag `{Adj}`.
 
 ```
 el perro {N m} = pies
 la gata {N f} = kotka
-los ninos {N m pl} = dzieci
+los niños {N m pl} = dzieci
 las casas {N f pl} = domy
 
-hablar {V ar} = mowic
-comer {V er} = jesc
-vivir {V ir} = zyc
-ser {V irreg} = byc
-tener {V er irreg} = miec
+hablar {V ar} = mówić
+comer {V er} = jeść
+vivir {V ir} = żyć
+ser {V irreg} = być
+tener {V er irreg} = mieć
 
-pequeno {Adj} = maly
-feliz {Adj} = szczesliwy
-rapido {Adv} = szybko
+pequeño {Adj} = mały
+feliz {Adj} = szczęśliwy
+rápido {Adv} = szybko
 ```
 
 **Multiple senses** in the Polish translation are separated by `; ` (semicolon + space):

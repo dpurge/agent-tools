@@ -3,6 +3,12 @@ name: phraseforge-lang-uzb
 description: Uzbek (Ozbek tili, ISO 639-3 uzb) language conventions for PhraseForge lessons — Latin script variant. Codes, vocabulary shape (agglutinative, no gender), verb/noun tags, and notes. Load whenever a PhraseForge lesson targets Uzbek.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Uzbek (uzb) language conventions
 
 ## Codes
@@ -18,7 +24,7 @@ Not needed. Uzbek uses Latin script. Preserve: `g' o' sh ch ng`.
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Uzbek-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Uzbek-specific rules:
 
 - **No grammatical gender, no articles.** All nouns take `{N}`.
 - **Verbs:** infinitive (ending `-moq`). Tag `{V}`. Add `irreg` for irregular.
@@ -30,12 +36,12 @@ uy {N} = dom; mieszkanie
 ayol {N} = kobieta
 bola {N} = dziecko
 
-gapirmoq {V} = mowic
-ko'rmoq {V} = widziec
-bo'lmoq {V} = byc
-ega bo'lmoq {V} = miec; posiadac
+gapirmoq {V} = mówić
+ko'rmoq {V} = widzieć
+bo'lmoq {V} = być
+ega bo'lmoq {V} = mieć; posiadać
 
-kichik {Adj} = maly
+kichik {Adj} = mały
 tez {Adv} = szybko
 ```
 

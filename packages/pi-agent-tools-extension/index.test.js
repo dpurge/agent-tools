@@ -10,6 +10,7 @@ import extension, {
   listDirectories,
   listMarkdown,
   readCommand,
+  renderCommandPrompt,
   resolveAssetRoot,
 } from "./index.js";
 
@@ -48,16 +49,36 @@ function makeFixture() {
 function makePiStub() {
   const commands = new Map();
   const notifications = [];
+  const ctxNotifications = [];
+  const sentMessages = [];
   return {
     commands,
     notifications,
+    ctxNotifications,
+    sentMessages,
     registerCommand(name, config) {
       commands.set(name, config);
+    },
+    sendUserMessage(message, options) {
+      sentMessages.push({ message, options });
     },
     ui: {
       notify(message) {
         notifications.push(message);
       },
+    },
+    makeCtx(overrides = {}) {
+      return {
+        isIdle() {
+          return true;
+        },
+        ui: {
+          notify(message) {
+            ctxNotifications.push(message);
+          },
+        },
+        ...overrides,
+      };
     },
   };
 }
@@ -117,6 +138,16 @@ test("readCommand returns file contents or null", () => {
   assert.equal(readCommand(fixture, "nope"), null);
 });
 
+test("renderCommandPrompt substitutes $ARGUMENTS", () => {
+  assert.equal(renderCommandPrompt("Hello $ARGUMENTS", "world"), "Hello world");
+});
+
+test("renderCommandPrompt substitutes $AGENT_TOOLS_ROOT", () => {
+  const rendered = renderCommandPrompt("Root: $AGENT_TOOLS_ROOT", "");
+  assert.match(rendered, /Root: .+/);
+  assert.match(rendered, /skills/);
+});
+
 test("registers the listing commands plus one per command file", () => {
   const pi = makePiStub();
   const result = createExtension(fixture)(pi);
@@ -151,19 +182,27 @@ test("list handlers emit their entries", async () => {
   assert.equal(pi.notifications.at(-1), "engineer\nreviewer");
 });
 
-test("each command handler runs its markdown, with an optional request header", async () => {
+test("handlers prefer ctx.ui.notify when provided", async () => {
+  const pi = makePiStub();
+  createExtension(fixture)(pi);
+  await pi.commands.get("skills").handler("", pi.makeCtx());
+  assert.equal(pi.ctxNotifications.at(-1), "architecture-review\ncode-review");
+});
+
+test("each command handler sends its markdown as a user message", async () => {
   const pi = makePiStub();
   createExtension(fixture)(pi);
 
-  await pi.commands.get("feature-development").handler("add login");
-  let message = pi.notifications.at(-1);
-  assert.match(message, /^Request: add login/);
-  assert.match(message, /Feature Development/);
+  await pi.commands.get("feature-development").handler("add login", pi.makeCtx());
+  let sent = pi.sentMessages.at(-1);
+  assert.match(sent.message, /Feature Development/);
+  assert.equal(sent.options, undefined);
 
-  await pi.commands.get("bug-investigation").handler();
-  message = pi.notifications.at(-1);
-  assert.doesNotMatch(message, /^Request:/);
-  assert.match(message, /Bug Investigation/);
+  await pi.commands.get("bug-investigation").handler("", pi.makeCtx({ isIdle: () => false }));
+  sent = pi.sentMessages.at(-1);
+  assert.match(sent.message, /Bug Investigation/);
+  assert.deepEqual(sent.options, { deliverAs: "followUp" });
+  assert.equal(pi.ctxNotifications.at(-1), "Command queued as follow-up");
 });
 
 test("reserved command names never override the listing commands", async () => {

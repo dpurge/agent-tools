@@ -3,6 +3,12 @@ name: phraseforge-lang-uig
 description: Uyghur (Uyghurche, ISO 639-3 uig) language conventions for PhraseForge lessons — Arabic script (Uyghur Perso-Arabic alphabet, standard in Xinjiang). Codes, RTL script, ULY/Chagatai-Latin transcription, agglutinative vocabulary shape, and notes. Load whenever a PhraseForge lesson targets Uyghur.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Uyghur (uig) language conventions
 
 ## Codes
@@ -14,53 +20,87 @@ Note: phraseforge-data stores Uyghur in `uig-cyrl` (Cyrillic); the canonical lit
 
 ## Transcription
 
-Required (non-Latin script). Use **ULY** (Uyghur Latin Yéziqi) — the standardized Latin romanization:
+Required (non-Latin script), inline on EVERY vocabulary and models entry AND for the full text.
+System: **ULY** (Uyghur Latin Yëziqi, attr `ULY`) — the official standardized Latin orthography for
+Uyghur, phonemic and Latin-target. Unlike Arabic proper, Uyghur Arabic script always marks all 8 vowels
+explicitly, so no vowel-supply step is needed.
 
-| Arabic | ULY | | Arabic | ULY |
-|--------|-----|-|--------|-----|
-| ئا | a | | ئو | o |
-| ئە | e | | ئۇ | u |
-| ئى | i | | ئۆ | ö |
-| ئې | é | | ئۈ | ü |
-| ب | b | | پ | p |
-| ت | t | | ج | j |
-| چ | ch | | خ | x |
-| د | d | | ر | r |
-| ز | z | | ژ | zh |
-| س | s | | ش | sh |
-| ف | f | | غ | gh |
-| ق | q | | ك | k |
-| گ | g | | ڭ | ng |
-| ل | l | | م | m |
-| ن | n | | ھ | h |
-| ۋ | w | | ي | y |
+### Letter correspondences
 
-System attribute: `ULY`.
+**Vowels** (8; Uyghur Arabic vowel letters each map to a distinct ULY letter):
+
+| Arabic | ULY | IPA |
+|--------|-----|-----|
+| ئا | a | /ɑ/ |
+| ئە | e | /æ~ɛ/ |
+| ئى | i | /ɪ~ɯ/ |
+| ئې | ë | /e/ |
+| ئو | o | /o/ |
+| ئۇ | u | /u/ |
+| ئۆ | ö | /ø/ |
+| ئۈ | ü | /y/ |
+
+**Consonants** (24):
+
+| Arabic | ULY | | Arabic | ULY | | Arabic | ULY |
+|--------|-----|-|--------|-----|-|--------|-----|
+| ب | b | | ز | z | | گ | g |
+| پ | p | | ژ | zh | | ڭ | ng |
+| ت | t | | س | s | | ل | l |
+| ج | j | | ش | sh | | م | m |
+| چ | ch | | غ | gh | | ن | n |
+| خ | x | | ف | f | | ھ | h |
+| د | d | | ق | q | | ۋ | w |
+| ر | r | | ك | k | | ي | y |
+
+### Reading rules (natural)
+
+1. **One-to-one mapping.** Each Uyghur Arabic letter corresponds to exactly one ULY letter or digraph
+   per the table above. No additional conversion rules are required.
+2. **Vowels always explicit.** Uyghur Arabic script marks all vowels; every vowel in the source has a
+   direct ULY equivalent — transcribe it directly.
+3. **Digraphs.** ch, sh, zh, gh, ng are ULY representations of single consonant phonemes. Treat each
+   digraph as one unit; do not split (e.g., sh → sh, not s + h).
+4. **Word-initial vowel onset.** Uyghur Arabic vowel letters carry a silent ئ (alif with hamza) at word
+   beginning; this onset is not transcribed in ULY — only the vowel letter is rendered.
+5. **Vowel harmony.** Uyghur is a vowel-harmony language: suffixes take their front-vowel (e/ë/i/ö/ü)
+   or back-vowel (a/o/u) form based on the last stem vowel. Transcribe each suffix as written in the source.
+6. **Gemination.** Doubled consonants written in the Arabic script are doubled in ULY.
+
+### Typography
+
+- Latin punctuation `, . ! ? : ; ' " ( )` — never Arabic `، ؛ ؟ «　»`.
+- Capitalize the first word of each sentence and all proper nouns; everything else lower-case.
+- Keep diacritics (ë ö ü). Standard word spacing.
+
+### Example
+
+`ئۆيدە كۆپ كىتاب بار.` → `Öyde köp kitab bar.`
+(ئۆ→ö, ي→y, د→d, ە→e: öyde; ك→k, ۆ→ö, پ→p: köp; ك→k, ى→i, ت→t, ا→a, ب→b: kitab;
+ب→b, ا→a, ر→r: bar; every vowel in the Arabic source has a direct ULY mapping; sentence-initial capital.)
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Uyghur-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Uyghur-specific rules:
 
-- **No grammatical gender.** All nouns take `{N}`. Plural is formed with `لار-` / `لەر-` (`-lar`/`-lär`) suffix (vowel harmony).
-- **Verbs:** infinitive/dictionary form (verb stem + `-maq`/`-mäk`), tag `{V}`.
+- **No grammatical gender.** All nouns take `{N}`. Plural is formed with `لار-` / `لەر-` (`-lar`/`-ler`) suffix (vowel harmony).
+- **Verbs:** infinitive/dictionary form (verb stem + `-maq`/`-mek`), tag `{V}`.
 - **Adjectives:** uninflected form, tag `{Adj}`.
 
 ```
-ئىت {N} = pies
-öy {N} = dom (transcription: öy)
-ئايال {N} = kobieta
-بالا {N} = dziecko
+ئىت {N} [it] = pies
+öy {N} [öy] = dom
+ئايال {N} [ayal] = kobieta
+بالا {N} [bala] = dziecko
 
-سۆزلىمەك {V} = mowic
-كۆرمەك {V} = widziec
-بولماق {V} = byc
-بارماق {V} = isc
+سۆزلىمەك {V} [sözlimek] = mówić
+كۆرمەك {V} [körmek] = widzieć
+بولماق {V} [bolmaq] = być
+بارماق {V} [barmaq] = iść
 
-كىچىك {Adj} = maly
-تېز {Adv} = szybko
+كىچىك {Adj} [kichik] = mały
+تېز {Adv} [tëz] = szybko
 ```
-
-ULY transcriptions: `it`, `öy`, `ayal`, `bala`, `sözlimäk`, `körmäk`, `bolmaq`, `barmaq`, `kichik`, `téz`.
 
 ## Grammar notes (B1+)
 

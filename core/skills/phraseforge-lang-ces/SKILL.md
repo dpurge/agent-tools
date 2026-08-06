@@ -3,6 +3,12 @@ name: phraseforge-lang-ces
 description: Czech (Cestina, ISO 639-3 ces) language conventions for PhraseForge lessons. Codes, vocabulary shape (no article + gender/animate), verb aspect tags, and notes. Load whenever a PhraseForge lesson targets Czech.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Czech (ces) language conventions
 
 ## Codes
@@ -16,24 +22,24 @@ Not needed. Czech uses Latin script. Preserve diacritics: `á c d e é i n o r s
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Czech-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Czech-specific rules:
 
 - **Nouns:** no articles; mark gender and animate/inanimate for masculines: `{N m an}` (masculine animate), `{N m in}` (masculine inanimate), `{N f}`, `{N n}`.
-- **Verbs:** infinitive form. Czech verbs have **aspect pairs** (imperfective/perfective); list both when relevant: `delat {V impf}` / `udelat {V pf}`. Tag `irreg` if irregular.
+- **Verbs:** infinitive form. Czech verbs have **aspect pairs** (imperfective/perfective); list both when relevant: `dělat {V impf}` / `udělat {V pf}`. Tag `irreg` if irregular.
 - **Adjectives:** masculine singular nominative, tag `{Adj}`.
 
 ```
 pes {N m an} = pies
-dum {N m in} = dom
-zena {N f} = kobieta
-mesto {N n} = miasto
+dům {N m in} = dom
+žena {N f} = kobieta
+město {N n} = miasto
 
-mluvit {V impf} = mowic
-videt {V impf irreg} = widziec
-byt {V irreg} = byc
-mit {V irreg} = miec
+mluvit {V impf} = mówić
+vidět {V impf irreg} = widzieć
+být {V irreg} = być
+mít {V irreg} = mieć
 
-maly {Adj} = maly
+malý {Adj} = mały
 rychle {Adv} = szybko
 ```
 

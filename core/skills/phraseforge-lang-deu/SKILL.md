@@ -3,6 +3,12 @@ name: phraseforge-lang-deu
 description: German (Deutsch, ISO 639-3 deu) language conventions for PhraseForge lessons. Defines codes, transcription (none — Latin script), vocabulary entry shape (article + gender/number), verb/adjective format, and inflection table conventions. Load whenever a PhraseForge lesson targets German.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # German (deu) language conventions
 
 ## Codes
@@ -16,9 +22,9 @@ Not needed. German uses Latin script. Render `ä`, `ö`, `ü`, `ß` as-is; do **
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. German-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. German-specific rules:
 
-- **Nouns:** include the **definite article** in the headword, mark gender and number. Use `{N m}` / `{N f}` / `{N n}` for singular dictionary entries; add `pl` only when listing the plural form separately.
+- **Nouns:** include the **definite article** in the dictionary/citation form, and mark gender and number. Use `{N m}` / `{N f}` / `{N n}` for singular dictionary entries; add `pl` only when listing the plural form separately.
 - **Verbs:** bare infinitive (no `zu`), tag `{V}`. Separable verbs: `{V sep}`. Reflexive: `{V refl}`.
 - **Adjectives:** uninflected (predicate) form, tag `{Adj}`.
 

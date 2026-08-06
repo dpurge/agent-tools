@@ -30,6 +30,18 @@ const INSTALLERS = {
   pi: "install-pi.js",
 };
 
+const EDITABLE_INSTALLERS = {
+  claude: "install-editable-claude.js",
+  opencode: "install-editable-opencode.js",
+  pi: "install-editable-pi.js",
+};
+
+const EDITABLE_UNINSTALLERS = {
+  claude: "uninstall-editable-claude.js",
+  opencode: "uninstall-editable-opencode.js",
+  pi: "uninstall-editable-pi.js",
+};
+
 const program = new Command();
 
 program
@@ -75,6 +87,52 @@ program
     if (options.force) {
       args.push("--force");
     }
+    if (options.targetDir) {
+      args.push(`--target=${options.targetDir}`);
+    }
+
+    process.exit(await run(script, args));
+  });
+
+program
+  .command("install-editable")
+  .argument("<target>", "claude | opencode | pi")
+  .option("-f, --force", "overwrite existing files")
+  .option("-t, --target-dir <dir>", "project-local install location")
+  .description("Install agent-tools in editable mode")
+  .action(async (target, options) => {
+    const script = EDITABLE_INSTALLERS[target];
+
+    if (!script) {
+      console.error(`Unknown target '${target}'. Use: claude, opencode, or pi.`);
+      process.exit(1);
+    }
+
+    const args = [];
+    if (options.force) {
+      args.push("--force");
+    }
+    if (options.targetDir) {
+      args.push(`--target=${options.targetDir}`);
+    }
+
+    process.exit(await run(script, args));
+  });
+
+program
+  .command("uninstall-editable")
+  .argument("<target>", "claude | opencode | pi")
+  .option("-t, --target-dir <dir>", "project-local install location")
+  .description("Uninstall agent-tools editable mode")
+  .action(async (target, options) => {
+    const script = EDITABLE_UNINSTALLERS[target];
+
+    if (!script) {
+      console.error(`Unknown target '${target}'. Use: claude, opencode, or pi.`);
+      process.exit(1);
+    }
+
+    const args = [];
     if (options.targetDir) {
       args.push(`--target=${options.targetDir}`);
     }

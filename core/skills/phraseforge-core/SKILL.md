@@ -15,8 +15,14 @@ Follow these steps in order. Don't skip.
 
 1. **Get the source** the user supplied:
    - Inline text → use directly.
-   - URL → fetch it via the host's web-fetch tool. Strip nav/ads, keep the article body.
-   - File path → read it with the host's file-read tool.
+   - URL → fetch it with the checked-in local extractor script:
+
+     ```bash
+     uv run --script $AGENT_TOOLS_ROOT/skills/phraseforge-core/tools/fetch-article.py --url '<URL>' --format markdown
+     ```
+
+     This script preserves the source's real title/headline as the leading `# H1` and extracts the main article body. **Use this exact command first for article URLs. Do not substitute `curl`, browser fetches, or ad-hoc Python/JS/shell scrapers for fetching article text.**
+   - File path → read it with the host's file-read tool, preserving any explicit document title.
 2. **Detect the foreign language.** Map to 3-letter ISO 639-3. Quick lookup for common cases:
 
    | Language | `lang` | `script` |
@@ -88,14 +94,14 @@ Follow these steps in order. Don't skip.
 
    Per-language skills carry: transcription system (if non-Latin), vocabulary shape (article + gender for nouns, conjugation hints for verbs), inflection-table format, formality defaults.
 4. **Pick the CEFR level** (`a1`–`c2`, lowercase). Ask the user if unsure. Read `references/levels.md` for word-count and grammar targets.
-5. **Adapt the source text** to the target level — simplify vocabulary and grammar to match. Aim for the word-count targets in `references/levels.md`. Keep the meaning. Stay in coherent prose (no bullet lists).
-6. **Extract vocabulary** — 15–40 entries depending on level. Each entry: foreign headword, grammar tag, Polish gloss. The exact shape (article placement, gender markers, etc.) comes from the language skill loaded in step 3. Grammar tags follow `references/vocabulary.md`; the canonical tags are not yet finalised in the real source data, so use them when generating lessons. **When an entry has multiple senses, separate them in the Polish translation with `; ` (semicolon + space)** — e.g. `"wszyscy; wszystkie"`, `"dzień dobry; cześć"`.
-7. **Build models** — 3–6 progressive phrase patterns that illustrate the constructions used in the source.
+5. **Adapt the source text** to the target level — simplify vocabulary and grammar to match. Aim for the word-count targets in `references/levels.md`. Keep the meaning. Stay in coherent prose (no bullet lists). **For levelled ebook chapters, do not use the source title as the lesson/chapter title. The lesson title stays the structural chapter id with the level uppercased (for example `B1-003`). Instead, preserve the source title/headline inside the source text itself as a leading `## H2`, preferring the exact original headline first. Only simplify the headline when its original wording is clearly too difficult for the target CEFR level, and keep the adapted headline recognisably close to the source.**
+6. **Extract vocabulary** — 15–40 entries depending on level. In the lesson JSON, each entry uses the field name `phrase` for the foreign word/phrase in dictionary/citation form, plus the grammar tag and Polish gloss. The exact shape (article placement, gender markers, etc.) comes from the language skill loaded in step 3. Grammar tags follow `references/vocabulary.md`; the canonical tags are not yet finalised in the real source data, so use them when generating lessons. **When an entry has multiple senses, separate them in the Polish translation with `; ` (semicolon + space)** — e.g. `"wszyscy; wszystkie"`, `"dzień dobry; cześć"`.
+7. **Build models** — 3–6 progressive phrases that illustrate the constructions used in the source. In the lesson JSON, each models entry also uses the field name `phrase`.
 8. **Compose translation** — Polish prose translation of the source.
 9. **Compose transcription** if the script is non-Latin (`arab`, `hans`, `jpan`, `kore`, `hebr`, etc.) — using the transcription system the language skill specifies.
 10. **Compose questions** (optional) — open-ended comprehension prompts in the foreign language.
 11. **Exercises are skipped for the ebook output.** The `{start-*}` ebook format (Route B) has no exercise block, so `/ebook` does not emit interactive exercises.
-12. **Hand off to `phraseforge-ebook`.** Build the Lesson JSON once (vocabulary, models, source text/dialog, transcription, translation, questions) and hand it to `phraseforge-ebook`, which renders the `{start-*}`-fenced chapter `.md` and the `ebook.yml`. **The output skill MUST write the file(s) to disk and verify they exist — printing content to chat instead of saving loses the lesson permanently.**
+12. **Hand off to `phraseforge-ebook`.** Build the Lesson JSON once (vocabulary, models, source text/dialog, transcription, translation, questions) and hand it to `phraseforge-ebook`, which renders the `{start-*}`-fenced chapter `.md` and the `ebook.yml`. For a levelled chapter path like `<level>/NNN.md`, set `lesson.title` to the uppercased structural chapter id (for example `B1-003`), **not** to the article headline. Put the original source title/headline at the top of the source text itself as an `## H2`; prefer the exact original headline first, and only simplify it when the original wording is clearly too difficult for the target CEFR level. Only synthesize a headline if the source truly has none. **After rendering, verify that the chapter H1 is the uppercased structural id and that the `{start-text as=source ...}` block begins with the source-title `## H2`, and correct either one if necessary.** **The output skill MUST write the file(s) to disk and verify they exist — printing content to chat instead of saving loses the lesson permanently.**
 
 ## Output
 
@@ -113,6 +119,7 @@ You don't write the lesson file yourself — the output skill does. After it ret
 - `references/languages.md` — language + script code tables (high-level index; per-language detail lives in the `phraseforge-lang-<iso>` skills).
 - `references/levels.md` — CEFR levels and adaptation targets (word counts, grammar scope).
 - `references/vocabulary.md` — canonical grammar tag vocabulary used in `{...}` slots.
+- `../phraseforge-format/SKILL.md` — canonical JSON field rules for `phrase`, `transcription`, `translation`, and `notes`.
 
 ## Sister skills
 
@@ -151,7 +158,7 @@ Invoke every tool via `uv run --script` so its [PEP 723](https://peps.python.org
   | `translation.language` | `translation_lang` |
   | `translation.script` | `translation_script` |
 
-  **Vocabulary items:** each line in the `.ff` body has the form `headword {grammar} [transcription] = translation (notes)`. All parts except `headword` are optional. Multiple translations separated by `; ` are preserved as-is in the `translation` field. The parenthetical at the end of the line becomes `notes`.
+  **Vocabulary items:** each line in the `.ff` body has the form `phrase {grammar} [transcription] = translation (notes)`. In the parsed/generated lesson JSON, that first textual slot also uses the field name `phrase`. All parts except the word/phrase itself are optional. Multiple translations separated by `; ` are preserved as-is in the `translation` field. The parenthetical at the end of the line becomes `notes`.
 
   **Dialog body:** The raw `@Speaker:` / `--:` / indented-body format is parsed into a structured `DialogSource` with typed `DialogTurn` and `Narration` items, matching the phraseforge-web remark plugin conventions.
 

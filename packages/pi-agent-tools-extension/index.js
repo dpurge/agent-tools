@@ -63,6 +63,17 @@ export function readCommand(root, name) {
   return fs.readFileSync(file, "utf8");
 }
 
+export function renderCommandPrompt(body, args = "") {
+  const request = String(args).trim();
+  return body
+    .replaceAll("$ARGUMENTS", request)
+    .replaceAll("$AGENT_TOOLS_ROOT", skillRootForPrompt());
+}
+
+function skillRootForPrompt() {
+  return path.join(resolveAssetRoot(), "skills");
+}
+
 /**
  * Build the Pi extension entry point. Exported as a factory so it can be
  * exercised in tests against a fixture asset root.
@@ -71,11 +82,21 @@ export function createExtension(root = resolveAssetRoot()) {
   const components = loadComponents(root);
 
   return function agentToolsExtension(pi) {
-    const notify = message => pi.ui.notify(message);
+    const notify = (message, ctx) => {
+      if (typeof ctx?.ui?.notify === "function") {
+        ctx.ui.notify(message, "info");
+        return;
+      }
+      if (typeof pi?.ui?.notify === "function") {
+        pi.ui.notify(message, "info");
+        return;
+      }
+      console.log(message);
+    };
 
     pi.registerCommand("agent-tools", {
       description: "Show available agent-tools components",
-      async handler() {
+      async handler(args, ctx) {
         notify(
           [
             "agent-tools loaded",
@@ -84,29 +105,30 @@ export function createExtension(root = resolveAssetRoot()) {
             `Agents: ${components.agents.join(", ") || "none"}`,
             `Workflows: ${components.workflows.join(", ") || "none"}`,
             `Commands: ${components.commands.join(", ") || "none"}`,
-          ].join("\n")
+          ].join("\n"),
+          ctx
         );
       },
     });
 
     pi.registerCommand("skills", {
       description: "List agent-tools skills",
-      async handler() {
-        notify(components.skills.length ? components.skills.join("\n") : "No skills installed");
+      async handler(args, ctx) {
+        notify(components.skills.length ? components.skills.join("\n") : "No skills installed", ctx);
       },
     });
 
     pi.registerCommand("agents", {
       description: "List agent-tools agents",
-      async handler() {
-        notify(components.agents.length ? components.agents.join("\n") : "No agents installed");
+      async handler(args, ctx) {
+        notify(components.agents.length ? components.agents.join("\n") : "No agents installed", ctx);
       },
     });
 
     pi.registerCommand("workflows", {
       description: "List agent-tools workflows",
-      async handler() {
-        notify(components.workflows.length ? components.workflows.join("\n") : "No workflows installed");
+      async handler(args, ctx) {
+        notify(components.workflows.length ? components.workflows.join("\n") : "No workflows installed", ctx);
       },
     });
 
@@ -122,15 +144,19 @@ export function createExtension(root = resolveAssetRoot()) {
 
       pi.registerCommand(name, {
         description: `Run the ${name} command`,
-        async handler(args = "") {
+        async handler(args = "", ctx) {
           const body = readCommand(root, name);
           if (!body) {
-            notify(`${name} command is not installed`);
+            notify(`${name} command is not installed`, ctx);
             return;
           }
-          const request = String(args).trim();
-          const header = request ? `Request: ${request}\n\n` : "";
-          notify(header + body);
+          const prompt = renderCommandPrompt(body, args);
+          if (ctx?.isIdle?.() === false) {
+            pi.sendUserMessage(prompt, { deliverAs: "followUp" });
+            notify("Command queued as follow-up", ctx);
+            return;
+          }
+          pi.sendUserMessage(prompt);
         },
       });
 

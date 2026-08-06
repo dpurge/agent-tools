@@ -97,6 +97,7 @@ async function validateDirectories() {
     "core/skills",
     "core/agents",
     "core/workflows",
+    "core/commands",
     "core/rules",
     "adapters",
     "packages"
@@ -127,6 +128,8 @@ async function validateSkills() {
 
       if (!parsed.attributes.name) {
         warn(`Skill '${skill}' missing name`);
+      } else if (parsed.attributes.name !== skill) {
+        warn(`Skill '${skill}' frontmatter name is '${parsed.attributes.name}'`);
       }
       if (!parsed.attributes.description) {
         warn(`Skill '${skill}' missing description`);
@@ -195,6 +198,25 @@ async function validateWorkflows(agents, skills) {
   }
 }
 
+async function validateCommands() {
+  const dir = path.join(ROOT, "core/commands");
+
+  for (const file of await listFiles(dir, ".md")) {
+    try {
+      const parsed = matter(await fs.readFile(path.join(dir, file), "utf8"));
+      const { description } = parsed.attributes;
+
+      if (!description) {
+        warn(`Command '${file}' missing description`);
+      }
+
+      ok(`Command validated: ${file}`);
+    } catch (e) {
+      error(`Invalid command '${file}': ${e.message}`);
+    }
+  }
+}
+
 //
 // Every skill / agent / workflow / command listed in the manifest must exist
 // as a file. Catches drift between agent-tools.yaml and core/.
@@ -213,6 +235,25 @@ async function validateManifestReferences(config) {
         error(`Manifest lists ${kind} '${name}' but ${path.relative(ROOT, resolve(name))} is missing`);
       } else {
         ok(`Manifest ${kind} present: ${name}`);
+      }
+    }
+  }
+}
+
+async function validateManifestCompleteness(config) {
+  const actual = {
+    skills: new Set(await listDirs(path.join(ROOT, "core/skills"))),
+    agents: new Set((await listFiles(path.join(ROOT, "core/agents"), ".md")).map(file => file.replace(/\.md$/, ""))),
+    workflows: new Set((await listFiles(path.join(ROOT, "core/workflows"), ".md")).map(file => file.replace(/\.md$/, ""))),
+    commands: new Set((await listFiles(path.join(ROOT, "core/commands"), ".md")).map(file => file.replace(/\.md$/, ""))),
+  };
+
+  for (const kind of Object.keys(actual)) {
+    const listed = new Set(config[kind] ?? []);
+
+    for (const name of actual[kind]) {
+      if (!listed.has(name)) {
+        error(`Unlisted ${kind.slice(0, -1)} '${name}' exists in core but is missing from agent-tools.yaml`);
       }
     }
   }
@@ -278,6 +319,7 @@ async function main() {
   await validateDirectories();
   await validateSkills();
   await validateAgents();
+  await validateCommands();
 
   const agents = new Set(
     (await listFiles(path.join(ROOT, "core/agents"), ".md")).map(f => f.replace(".md", ""))
@@ -288,6 +330,7 @@ async function main() {
 
   if (manifest) {
     await validateManifestReferences(manifest);
+    await validateManifestCompleteness(manifest);
     await validateTargets(manifest);
   }
 

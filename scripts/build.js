@@ -11,9 +11,13 @@ import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import yaml from "js-yaml";
-
-const ROOT = process.cwd();
+import {
+  ROOT,
+  componentPath,
+  installManifestMcp,
+  listedComponentDestination,
+  readManifest,
+} from "./lib/install-common.js";
 const PACKAGES = path.join(ROOT, "packages");
 
 // Generated targets removed before each build. Never lists package.json,
@@ -86,8 +90,14 @@ async function copyFile(source, destination) {
   await fs.copyFile(source, destination);
 }
 
-async function readManifest() {
-  return yaml.load(await fs.readFile(path.join(ROOT, "agent-tools.yaml"), "utf8"));
+async function copyDirOrFile(source, destination) {
+  const stat = await fs.stat(source);
+  if (stat.isDirectory()) {
+    await copyDir(source, destination);
+    return;
+  }
+
+  await copyFile(source, destination);
 }
 
 async function clean(packageDir) {
@@ -96,13 +106,17 @@ async function clean(packageDir) {
   }
 }
 
-async function assembleCommon(packageDir) {
-  for (const dir of ["skills", "agents", "workflows", "rules"]) {
-    await copyDir(path.join(ROOT, "core", dir), path.join(packageDir, dir));
+async function assembleCommon(packageDir, manifest) {
+  for (const kind of ["skills", "agents", "workflows", "commands"]) {
+    for (const name of manifest[kind] ?? []) {
+      const source = path.join(ROOT, ...componentPath(kind, name));
+      const destination = path.join(packageDir, listedComponentDestination(kind, name));
+      await copyDirOrFile(source, destination);
+    }
   }
 
-  await copyDir(path.join(ROOT, "core", "commands"), path.join(packageDir, "commands"));
-  await copyDir(path.join(ROOT, "extensions", "mcp"), path.join(packageDir, "mcp"));
+  await copyDir(path.join(ROOT, "core", "rules"), path.join(packageDir, "rules"));
+  await installManifestMcp(manifest, packageDir, { force: true });
 
   await copyFile(path.join(ROOT, "LICENSE"), path.join(packageDir, "LICENSE"));
   await copyFile(path.join(ROOT, "README.md"), path.join(packageDir, "README.md"));
@@ -136,7 +150,7 @@ async function buildTarget(name, target, manifest) {
   console.log(`Assembling ${target.package}...`);
 
   await clean(packageDir);
-  await assembleCommon(packageDir);
+  await assembleCommon(packageDir, manifest);
 
   if (name === "claude") {
     await copyFile(

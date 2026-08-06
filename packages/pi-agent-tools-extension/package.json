@@ -1,6 +1,6 @@
 {
   "name": "@dpurge/pi-agent-tools-extension",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pi extension providing agent-tools skills, workflows, commands, and orchestration helpers.",
   "type": "module",
   "license": "MIT",

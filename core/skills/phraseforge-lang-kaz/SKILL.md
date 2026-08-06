@@ -3,6 +3,12 @@ name: phraseforge-lang-kaz
 description: Kazakh (Qazaq tili, ISO 639-3 kaz) language conventions for PhraseForge lessons — Cyrillic script variant as in phraseforge-data. Codes, vocabulary shape (agglutinative, no gender), verb/noun tags, and notes. Load whenever a PhraseForge lesson targets Kazakh.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Kazakh (kaz) language conventions
 
 ## Codes
@@ -18,7 +24,7 @@ Not required by default (Cyrillic excluded from transcription block per `phrasef
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Kazakh-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Kazakh-specific rules:
 
 - **No grammatical gender, no articles.** All nouns take `{N}`.
 - **Verbs:** infinitive (ending `-у`/`-ю` in Cyrillic, equivalent to `-w` stem). Tag `{V}`. Add `irreg` for irregular.
@@ -30,12 +36,12 @@ Tag conventions follow `phraseforge-core/references/vocabulary.md`. Kazakh-speci
 әйел {N} = kobieta
 бала {N} = dziecko
 
-сөйлеу {V} = mowic
-көру {V} = widziec
-болу {V} = byc
-болу {V} = miec (kontekst posiadania)
+сөйлеу {V} = mówić
+көру {V} = widzieć
+болу {V} = być
+болу {V} = mieć (kontekst posiadania)
 
-кішкентай {Adj} = maly
+кішкентай {Adj} = mały
 тез {Adv} = szybko
 ```
 

@@ -1,12 +1,14 @@
+import { createOpenCodePlugin } from "./runtime.js";
+
 /**
  * Entry point for the @dpurge/opencode-agent-tools-plugin npm package.
  *
- * The portable assets (skills, agents, commands, rules) are shipped as markdown
- * and consumed by OpenCode directly. This plugin registers no runtime hooks; it
- * exists so the package has a valid entry point and can be extended later.
- *
- * See: https://opencode.ai/docs/plugins/
+ * The bundled assets live next to this file. In an installed workspace the
+ * plugin directory lives under `.opencode/plugins/agent-tools`, while the
+ * portable assets may live one level up in `.opencode/`. The runtime helper
+ * resolves whichever layout is present and registers commands defensively when
+ * the host exposes a compatible command-registration API.
  */
-export const agentTools = async () => ({});
+export const agentTools = createOpenCodePlugin();
 
 export default agentTools;

@@ -25,8 +25,8 @@ Each marker sits on its own line; a matching `{end-NAME}` always follows.
 
 | Block | Marker | Line grammar / body |
 | --- | --- | --- |
-| vocabulary | `{start-vocabulary lang= script=}` | `headword {grammar} [transcription] = translation (notes)` — **never a bare `=`**; `as=` is illegal |
-| models | `{start-models lang= script=}` | `pattern [transcription] = translation` — split on the **first** ` = ` |
+| vocabulary | `{start-vocabulary lang= script=}` | `phrase {grammar} [transcription] = translation (notes)` — **never a bare `=`**; `as=` is illegal |
+| models | `{start-models lang= script=}` | `phrase [transcription] = translation` — split on the **first** ` = ` |
 | text | `{start-text as= lang= script=}` | raw markdown; `as` ∈ `source` / `transcription` / `translation` / `grammar` |
 | dialog | `{start-dialog [as=translation] lang= script=}` | `@Name:` / `--:` header lines; body indented **exactly 2 spaces**; blank line separates paragraphs |
 | questions | `{start-questions lang= script=}` | one question per line (question-only) |

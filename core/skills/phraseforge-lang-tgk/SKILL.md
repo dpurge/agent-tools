@@ -3,6 +3,12 @@ name: phraseforge-lang-tgk
 description: Tajik (Tojiki, ISO 639-3 tgk) language conventions for PhraseForge lessons — Cyrillic script as in phraseforge-data. Codes, vocabulary shape (no gender, SOV, Persian-related), verb/noun tags, and notes. Load whenever a PhraseForge lesson targets Tajik.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Tajik (tgk) language conventions
 
 ## Codes
@@ -18,7 +24,7 @@ Not required by default (Cyrillic excluded from transcription block).
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Tajik-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Tajik-specific rules:
 
 - **No grammatical gender, no articles.** All nouns take `{N}`. Plural formed by suffix `-ҳо` (`-ho`) or `-он` (`-on`).
 - **Verbs:** infinitive (ending `-ан`/`-idан`). Tag `{V}`. Add `irreg` for irregular.
@@ -30,12 +36,12 @@ Tag conventions follow `phraseforge-core/references/vocabulary.md`. Tajik-specif
 зан {N} = kobieta
 бача {N} = dziecko
 
-гап задан {V} = mowic; rozmawiac
-дидан {V} = widziec
-будан {V irreg} = byc
-доштан {V irreg} = miec
+гап задан {V} = mówić; rozmawiać
+дидан {V} = widzieć
+будан {V irreg} = być
+доштан {V irreg} = mieć
 
-хурд {Adj} = maly
+хурд {Adj} = mały
 тез {Adv} = szybko
 ```
 

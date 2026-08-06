@@ -92,8 +92,8 @@ def _parse_grammar(text: str) -> str:
 def _parse_vocabulary_line(line: str) -> VocabularyEntry | None:
     """Parse one vocabulary line into a VocabularyEntry.
 
-    Format: headword {grammar} [transcription] = translation1; translation2 (note1; note2)
-    All parts except the headword are optional.
+    Format: phrase {grammar} [transcription] = translation1; translation2 (note1; note2)
+    All parts except the phrase are optional.
     """
     line = line.strip()
     if not line:
@@ -111,14 +111,14 @@ def _parse_vocabulary_line(line: str) -> VocabularyEntry | None:
         _translations_raw = _phrase[eq + 1:].strip()
         _phrase = _phrase[:eq].strip()
 
-    # [transcription] — rightmost bracket pair on the headword side
+    # [transcription] — rightmost bracket pair on the phrase side
     if _phrase.endswith("]"):
         j = _phrase.rfind("[")
         if j > -1:
             _transcription = _phrase[j + 1:-1].strip()
             _phrase = _phrase[:j].strip()
 
-    # {grammar} — rightmost brace pair on the headword side
+    # {grammar} — rightmost brace pair on the phrase side
     if _phrase.endswith("}"):
         k = _phrase.rfind("{")
         if k > -1:
@@ -138,7 +138,7 @@ def _parse_vocabulary_line(line: str) -> VocabularyEntry | None:
         translation = "; ".join(parts) if parts else None
 
     return VocabularyEntry(
-        headword=_phrase,
+        phrase=_phrase,
         grammar=_grammar or None,
         transcription=_transcription,
         translation=translation,
@@ -162,7 +162,7 @@ def _parse_vocabulary(body: str) -> list[VocabularyEntry]:
 def _parse_model_line(line: str) -> ModelEntry | None:
     """Parse one model line into a ModelEntry.
 
-    Format: pattern [transcription] = translation (notes)
+    Format: phrase [transcription] = translation (notes)
     `translation` is required; all other optional parts follow the same
     bracket/brace conventions as vocabulary lines.
     """
@@ -170,25 +170,25 @@ def _parse_model_line(line: str) -> ModelEntry | None:
     if not line:
         return None
 
-    _pattern = line
+    _phrase = line
     _transcription: str | None = None
     _translation_raw: str | None = None
     _notes: str | None = None
 
-    eq = _pattern.find("=")
+    eq = _phrase.find("=")
     if eq > -1:
-        _translation_raw = _pattern[eq + 1:].strip()
-        _pattern = _pattern[:eq].strip()
+        _translation_raw = _phrase[eq + 1:].strip()
+        _phrase = _phrase[:eq].strip()
     else:
         # Models without a translation are invalid — skip silently
         return None
 
     # [transcription]
-    if _pattern.endswith("]"):
-        j = _pattern.rfind("[")
+    if _phrase.endswith("]"):
+        j = _phrase.rfind("[")
         if j > -1:
-            _transcription = _pattern[j + 1:-1].strip()
-            _pattern = _pattern[:j].strip()
+            _transcription = _phrase[j + 1:-1].strip()
+            _phrase = _phrase[:j].strip()
 
     # (notes) on the translation side
     if _translation_raw.endswith(")"):
@@ -202,7 +202,7 @@ def _parse_model_line(line: str) -> ModelEntry | None:
         return None
 
     return ModelEntry(
-        pattern=_pattern,
+        phrase=_phrase,
         translation=translation,
         transcription=_transcription,
         notes=_notes,

@@ -3,6 +3,12 @@ name: phraseforge-lang-cmn-hans
 description: Mandarin Chinese Simplified (Putonghua, ISO 639-3 cmn, Simplified script hans) language conventions for PhraseForge lessons. Codes, Pinyin transcription, vocabulary shape (measure words, no gender/articles), and notes. Load whenever a PhraseForge lesson targets Mandarin in Simplified Chinese.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Mandarin Chinese — Simplified (cmn, hans) language conventions
 
 ## Codes
@@ -12,35 +18,122 @@ description: Mandarin Chinese Simplified (Putonghua, ISO 639-3 cmn, Simplified s
 
 ## Transcription
 
-Required (non-Latin script). Use **Pinyin** with tone marks. System attribute: `Pinyin`.
+Required (non-Latin script), inline on EVERY vocabulary and models entry AND for the full text.
+System: **Pinyin** (attr `Pinyin`), applied as a HYBRID — the letter values below are the
+scientific base; the reading rules make it read the way a Mandarin native reads aloud.
 
-Tones: 1st (ā), 2nd (á), 3rd (ǎ), 4th (à), neutral/5th (a, unmarked).
+### Letter correspondences
+
+**Initials (21):**
+
+| Group | Initials |
+|-------|----------|
+| Bilabial | b, p, m |
+| Labio-dental | f |
+| Alveolar | d, t, n, l |
+| Velar | g, k, h |
+| Palatal | j, q, x |
+| Retroflex | zh, ch, sh, r |
+| Alveolar sibilant | z, c, s |
+| Zero-initial spellings | y (before i/ü finals), w (before u finals) |
+
+*y and w are orthographic conventions, not separate initials: 鱼 yú, 我 wǒ, 月 yuè.*
+
+**Finals:**
+
+| Group | Finals |
+|-------|--------|
+| Simple | a, o, e, i, u, ü, er |
+| Compound — no medial | ai, ei, ao, ou, an, en, ang, eng, ong |
+| i-medial | ia, ie, iao, iu, ian, in, iang, ing, iong |
+| u-medial | ua, uo, uai, ui, uan, un, uang, ueng |
+| ü-medial | üe, üan, ün |
+
+*iu = iou, ui = uei, un = uen in full form; ü dots dropped after j/q/x (ju, qu, xu — ü implied).*
+
+**Tone marks (diacritic on the main vowel of the syllable):**
+
+| Tone | Diacritic | Example |
+|------|-----------|---------|
+| 1st — level | ā | māo 猫 |
+| 2nd — rising | á | máo 毛 |
+| 3rd — falling-rising | ǎ | mǎo 卯 |
+| 4th — falling | à | mào 帽 |
+| Neutral — unstressed | (none) | ma 吗 |
+
+Placement rule: mark on a or e if present; on o in -ou; otherwise on the last vowel of the syllable.
+
+### Reading rules (natural)
+
+1. **Syllable word-grouping (词连写):** syllables belonging to one word are written together;
+   separate words get a space. 北京大学 → *Běijīng Dàxué* (not *Běi Jīng Dà Xué*).
+2. **Tone marks kept** on every syllable, including inside compound words.
+3. **Neutral tone:** short, unstressed, no diacritic. Common in particles (的 *de*, 吗 *ma*,
+   了 *le*, 着 *zhe*, 过 *guo*) and the second syllable of reduplicates/common nouns (爸爸 *bàba*).
+4. **Er-hua (儿化):** when 儿 reduces to a rhyme suffix, append *r* directly to the preceding
+   syllable — NOT as a separate syllable: 哪儿 → *nǎr*, 这儿 → *zhèr*.
+5. **Apostrophe rule:** when a syllable starting with a vowel (a/o/e) follows another syllable,
+   insert `'` to prevent mis-parsing: 西安 → *Xī'ān*, 皮袄 → *pí'ǎo*.
+
+### Typography (MANDATORY)
+
+Pinyin is written in the **Latin script**, so it uses Latin-script typography — NEVER Chinese
+punctuation, and it IS capitalized:
+
+- **Punctuation:** use `, . ! ? : ; ' " ( )`. Convert every Chinese mark to its Latin equivalent
+  (`，` and `、` → `,`; `。` → `.`; `：` → `:`; `？` → `?`; `！` → `!`; `；` → `;`; `""` → `"`;
+  `（）` → `()`). Do NOT leave any of `，。、：？！；""（）` in the Pinyin.
+- **Capitalization:** capitalize the first word of each sentence and all proper nouns (人名, 地名,
+  brand/product names). Everything else lower-case.
+- **Tone marks:** keep them. **Spacing:** standard Pinyin word grouping (a word's syllables joined,
+  spaces between words).
+
+### Example
+
+```
+你大概有过这种体验：本来只想装个输入法。
+Nǐ dàgài yǒu guò zhè zhǒng tǐyàn: běnlái zhǐ xiǎng zhuāng ge shūrùfǎ.
+```
+
+WRONG — Chinese punctuation left in, no capital: `nǐ dàgài yǒu guò zhè zhǒng tǐyàn：běnlái ... shūrùfǎ。`
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Mandarin-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. You return each entry as a JSON
+object; the examples below show the RENDERED line. In the JSON you return, put the `grammar` content
+WITHOUT `{ }` and the `transcription` WITHOUT `[ ]` — the renderer adds them. Mandarin-specific rules:
 
 - **No grammatical gender, no articles, no inflection.** All nouns take `{N}`.
-- **Measure words (classifiers):** note the primary measure word for countable nouns: `{N cl ge}` (general 个), `{N cl ben}` (books 本), `{N cl zhi}` (animals 只), etc.
-- **Verbs:** uninflected stem, tag `{V}`. Add `irreg` for the handful of irregular forms.
+- **Measure words (classifiers):** mark a countable noun's measure word with its **Chinese character**
+  in the tag — `{N 个}`, `{N 本}`, `{N 只}`. If you are not sure of the correct measure word, use just
+  `{N}`. NEVER romanize it (never `cl ge`, `cl ben`, `cl zhi`). In JSON that is `"grammar": "N 只"`.
+- **Verbs:** uninflected stem, tag `{V}` (add `irreg` for the few irregular forms).
 - **Adjectives:** uninflected form, tag `{Adj}`.
+- **Transcription is MANDATORY inline on EVERY entry** — the `[pinyin]` between the tag and the `=`.
+  Never drop it; never move the pinyin to a separate line or list.
+
+Rendered lines (Pinyin follows the typography rules above; Polish keeps its diacritics):
 
 ```
-狗 {N cl zhi} = pies
-房子 {N cl ge} = dom
-女人 {N cl ge} = kobieta
-孩子 {N cl ge} = dziecko
+狗 {N 只} [gǒu] = pies
+书 {N 本} [shū] = książka
+房子 {N} [fángzi] = dom
+孩子 {N} [háizi] = dziecko
 
-说话 {V} = mowic
-看见 {V} = widziec
-是 {V} = byc (jest)
-有 {V} = miec
+说话 {V} [shuōhuà] = mówić
+看见 {V} [kànjiàn] = widzieć
+是 {V} [shì] = być
+有 {V} [yǒu] = mieć
 
-小 {Adj} = maly
-快 {Adv} = szybko
+小 {Adj} [xiǎo] = mały
+快 {Adv} [kuài] = szybko
 ```
 
-Pinyin: `gǒu`, `fángzi`, `nǚrén`, `háizi`, `shuōhuà`, `kànjiàn`, `shì`, `yǒu`, `xiǎo`, `kuài`.
+The JSON for the first line (no braces/brackets in the fields, `notes` null):
+
+```json
+{"phrase": "狗", "grammar": "N 只", "transcription": "gǒu", "translation": "pies", "notes": null}
+```
 
 ## Grammar notes (B1+)
 
@@ -56,4 +149,7 @@ Translate to Polish (`pol`). Chinese `你` (`nǐ`) → informal; `您` (`nín`) 
 ## Notes
 
 - Use Simplified characters (mainland China standard). For Traditional, see `phraseforge-lang-cmn-hant`.
-- HSK vocabulary levels (HSK 1–9) can be noted in parentheses as notes when helpful.
+- Keep the `notes` field null for almost every entry (see the format skill). Add a note ONLY when an
+  entry is genuinely ambiguous or hard to understand — a false friend, a non-obvious sense/usage, or
+  an easily-confused word. Do NOT add HSK levels or literal glosses; HSK level is metadata, not a
+  lesson note, and needless notes make the lesson harder to read.

@@ -20,7 +20,7 @@ Usage:
         --ebook-yml ebook.yml --book-name my-notes --section section.md
 
 Fence rules honoured (from the cli-tools parser contract):
-  - vocabulary: `headword {grammar} [transcription] = translation (notes)`,
+  - vocabulary: `phrase {grammar} [transcription] = translation (notes)`,
     never a bare `=`; `as=` is illegal here.
   - models / questions: split on the FIRST ` = ` (spaces around it).
   - dialog: `--:` / `@Name:` headers; body indented EXACTLY 2 spaces.
@@ -64,10 +64,10 @@ def _with_notes(translation: str, notes: str | None) -> str:
 
 
 def _vocab_line(entry) -> str | None:
-    headword = (entry.headword or "").strip()
-    if not headword:
+    phrase = (entry.phrase or "").strip()
+    if not phrase:
         return None
-    parts = [headword]
+    parts = [phrase]
     if entry.grammar and entry.grammar.strip():
         parts.append("{" + entry.grammar.strip() + "}")
     if entry.transcription and entry.transcription.strip():
@@ -84,11 +84,11 @@ def _vocab_line(entry) -> str | None:
 
 
 def _model_line(entry) -> str | None:
-    pattern = (entry.pattern or "").strip()
+    phrase = (entry.phrase or "").strip()
     translation = (entry.translation or "").strip()
-    if not pattern or not translation:
+    if not phrase or not translation:
         return None
-    left = pattern
+    left = phrase
     if entry.transcription and entry.transcription.strip():
         left += " [" + entry.transcription.strip() + "]"
     return f"{left} = " + _with_notes(translation, entry.notes)

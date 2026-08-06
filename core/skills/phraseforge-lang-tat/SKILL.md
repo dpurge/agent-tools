@@ -3,6 +3,12 @@ name: phraseforge-lang-tat
 description: Tatar (Tatar tele, ISO 639-3 tat) language conventions for PhraseForge lessons — Cyrillic script variant as in phraseforge-data. Codes, vocabulary shape (agglutinative, no gender), verb/noun tags, and notes. Load whenever a PhraseForge lesson targets Tatar.
 ---
 
+> **HOW TO USE THIS SKILL — MANDATORY.** You may be a small model. Follow these
+> conventions EXACTLY. Copy the tag shapes, dictionary/citation forms, and line formats from
+> the examples below **literally** — do not invent tags, do not add explanations
+> or extra prose, do not change the format. Produce ONLY the output this step asks
+> for, in the exact shape shown. When unsure, prefer the example over your own idea.
+
 # Tatar (tat) language conventions
 
 ## Codes
@@ -18,7 +24,7 @@ Not required by default (Cyrillic excluded from transcription block).
 
 ## Vocabulary format
 
-Tag conventions follow `phraseforge-core/references/vocabulary.md`. Tatar-specific rules:
+Field rules follow the injected **phraseforge-entry-format** skill. Tatar-specific rules:
 
 - **No grammatical gender, no articles.** All nouns take `{N}`.
 - **Verbs:** infinitive (ending `-у`/`-ү`). Tag `{V}`. Add `irreg` for irregular.
@@ -30,12 +36,12 @@ Tag conventions follow `phraseforge-core/references/vocabulary.md`. Tatar-specif
 хатын {N} = kobieta
 бала {N} = dziecko
 
-сөйләшергә {V} = mowic; rozmawiac
-күрергә {V} = widziec
-булырга {V} = byc
-булырга {V} = miec (posiadanie)
+сөйләшергә {V} = mówić; rozmawiać
+күрергә {V} = widzieć
+булырга {V} = być
+булырга {V} = mieć (posiadanie)
 
-кечкенә {Adj} = maly
+кечкенә {Adj} = mały
 тиз {Adv} = szybko
 ```
 

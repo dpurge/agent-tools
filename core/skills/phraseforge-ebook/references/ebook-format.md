@@ -30,6 +30,7 @@ Each marker sits on its own line; a matching `{end-NAME}` always follows.
 | text | `{start-text as= lang= script=}` | raw markdown; `as` ∈ `source` / `transcription` / `translation` / `grammar` |
 | dialog | `{start-dialog [as=translation] lang= script=}` | `@Name:` / `--:` header lines; body indented **exactly 2 spaces**; blank line separates paragraphs |
 | questions | `{start-questions lang= script=}` | one question per line (question-only) |
+| parallel | `{start-parallel lang= script=}` | records separated by a lone `===` line; each record is 1-3 fields separated by a lone `---` line: **source** (uses `lang=`/`script=`) → **translation** (book language, no marker) → **transcription** (optional, always Latin script/LTR) |
 
 **No exercise block exists** — exercises are not part of the ebook format.
 
@@ -65,6 +66,12 @@ Every `.md` (section + chapters) must start with an `# H1`. All referenced paths
   they are only split out by `ebook-cli vocab` → CSV.
 - **Dialog body must be exactly 2 spaces** indented — any other indent is a hard
   build error.
+- **Parallel splits on EVERY lone `---`**, not just the last one (unlike the old
+  behavior some docs elsewhere may still describe) — up to 3 fields. The
+  transcription field is always rendered in Latin script, left-to-right,
+  regardless of the source's own script (matches vocabulary/models' existing
+  transcription convention). `lang=`/`script=` are optional; omitted, the
+  source falls back to the book's own language/script.
 - **Raw ISO codes.** MDX keeps `deu`/`latn` verbatim; EPUB/PDF map them, and an
   unknown `language` silently falls back to English in EPUB/PDF.
 - **A5** is the PDF default (`book.typ`); override via `~/.config/cli-tools/config.yml`

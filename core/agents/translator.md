@@ -49,3 +49,9 @@ and transcriptions for the orchestrator to place.
 
 - The translation and/or transcription, plus brief notes on any choices, verified
   terms, or uncertainties (with the source consulted).
+
+This agent carries no `skills` frontmatter because translation work has no
+dedicated skill in this toolkit — the agent itself holds the language expertise.
+It is invoked as a specialist by the `anki` and `ebook` workflows
+(`core/workflows/anki.md`, `core/workflows/ebook.md`) and referenced in their
+companion commands (`core/commands/anki.md`, `core/commands/ebook.md`).

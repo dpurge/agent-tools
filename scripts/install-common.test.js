@@ -6,9 +6,10 @@ import path from "node:path";
 
 import {
   ROOT,
-  buildRulesDocument,
+  buildRulesSection,
   installManifestComponents,
   installRules,
+  mergeRulesIntoAgentsFile,
   writeRulesDocument,
 } from "./lib/install-common.js";
 
@@ -49,16 +50,78 @@ test("installRules copies markdown rules into a rules directory", async () => {
   await fs.rm(temp, { recursive: true, force: true });
 });
 
-test("buildRulesDocument combines repo rules under one heading", async () => {
-  const content = await buildRulesDocument();
+test("buildRulesSection wraps repo rules under one marker-bounded heading", async () => {
+  const content = await buildRulesSection();
 
-  assert.match(content, /^# Agent Tools Rules\n\n/);
+  assert.match(content, /^<!-- agent-tools:rules:start -->\n/);
+  assert.match(content, /## Agent Tools Rules/);
+  assert.match(content, /<!-- agent-tools:rules:end -->\n?$/);
 
   const codingStyle = await fs.readFile(path.join(ROOT, "core", "rules", "coding-style.md"), "utf8");
-  assert.match(content, new RegExp(codingStyle.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  // Headings are demoted two levels (# -> ###) so they nest under the
+  // wrapper heading instead of colliding with it as a sibling h1.
+  assert.match(content, /### Coding Style/);
+  assert.doesNotMatch(content, /^# Coding Style/m);
+  void codingStyle;
 });
 
-test("writeRulesDocument honors force=false and force=true", async () => {
+test("mergeRulesIntoAgentsFile creates AGENTS.md when missing", async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-agentsmd-"));
+  const agentsFile = path.join(temp, "AGENTS.md");
+
+  await mergeRulesIntoAgentsFile(agentsFile);
+
+  const content = await fs.readFile(agentsFile, "utf8");
+  assert.match(content, /## Agent Tools Rules/);
+
+  await fs.rm(temp, { recursive: true, force: true });
+});
+
+test("mergeRulesIntoAgentsFile preserves existing content and appends the rules section", async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-agentsmd-"));
+  const agentsFile = path.join(temp, "AGENTS.md");
+  await fs.writeFile(agentsFile, "# My Project\n\nSome project-specific orientation.\n", "utf8");
+
+  await mergeRulesIntoAgentsFile(agentsFile);
+
+  const content = await fs.readFile(agentsFile, "utf8");
+  assert.match(content, /# My Project/);
+  assert.match(content, /Some project-specific orientation\./);
+  assert.match(content, /## Agent Tools Rules/);
+
+  await fs.rm(temp, { recursive: true, force: true });
+});
+
+test("mergeRulesIntoAgentsFile replaces the marked section in place on re-run, not duplicating it", async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-agentsmd-"));
+  const agentsFile = path.join(temp, "AGENTS.md");
+  await fs.writeFile(agentsFile, "# My Project\n", "utf8");
+
+  await mergeRulesIntoAgentsFile(agentsFile);
+  await mergeRulesIntoAgentsFile(agentsFile);
+
+  const content = await fs.readFile(agentsFile, "utf8");
+  const markerCount = (content.match(/<!-- agent-tools:rules:start -->/g) || []).length;
+  assert.equal(markerCount, 1);
+
+  await fs.rm(temp, { recursive: true, force: true });
+});
+
+test("writeRulesDocument writes exactly @AGENTS.md and merges rules into the sibling AGENTS.md", async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-claude-"));
+  const file = path.join(temp, "CLAUDE.md");
+
+  const wrote = await writeRulesDocument(file, { force: true });
+  assert.equal(wrote, true);
+  assert.equal(await fs.readFile(file, "utf8"), "@AGENTS.md\n");
+
+  const agentsContent = await fs.readFile(path.join(temp, "AGENTS.md"), "utf8");
+  assert.match(agentsContent, /## Agent Tools Rules/);
+
+  await fs.rm(temp, { recursive: true, force: true });
+});
+
+test("writeRulesDocument honors force=false and force=true for CLAUDE.md itself", async () => {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-claude-"));
   const file = path.join(temp, "CLAUDE.md");
 
@@ -69,7 +132,7 @@ test("writeRulesDocument honors force=false and force=true", async () => {
 
   const second = await writeRulesDocument(file, { force: true });
   assert.equal(second, true);
-  assert.notEqual(await fs.readFile(file, "utf8"), "original\n");
+  assert.equal(await fs.readFile(file, "utf8"), "@AGENTS.md\n");
 
   await fs.rm(temp, { recursive: true, force: true });
 });

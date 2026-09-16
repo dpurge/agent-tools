@@ -26,6 +26,8 @@
 
   "files": [
     "index.js",
+    "agents.js",
+    "subagent-tool.js",
     "skills",
     "agents",
     "workflows",
@@ -50,8 +52,12 @@
     "test": "node --test"
   },
 
+  "dependencies": {
+    "typebox": "^1.3.32"
+  },
+
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": ">=0.40.0"
+    "@earendil-works/pi-coding-agent": ">=0.40.0"
   },
 
   "engines": {

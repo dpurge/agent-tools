@@ -2,10 +2,13 @@
 name: engineer
 description: Implements approved designs and writes tests. Makes focused code changes and runs builds and test suites.
 version: 1.0.0
+model: sonnet
 model_preference:
   - "deepseek/deepseek-v4-flash"
   - "z-ai/glm-5.2"
   - "qwen/qwen3-coder-flash"
+  - "anthropic/claude-sonnet-5"
+  - "openai/gpt-5.1-codex"
 tools:
   - Read
   - Write
@@ -19,6 +22,7 @@ permissions:
   bash: true
 skills:
   - code-review
+  - memory-format
 ---
 
 # Engineer

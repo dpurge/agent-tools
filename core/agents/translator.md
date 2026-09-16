@@ -2,10 +2,13 @@
 name: translator
 description: Translation and transcription specialist — translates text between languages and romanizes non-Latin scripts, verifying terms against dictionaries and sources rather than inventing them.
 version: 1.0.0
+model: sonnet
 model_preference:
   - "deepseek/deepseek-v4-flash"
   - "qwen/qwen3.5-plus-20260420"
   - "minimax/minimax-m3"
+  - "anthropic/claude-sonnet-5"
+  - "openai/gpt-5.1"
 tools:
   - Read
   - Grep

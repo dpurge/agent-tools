@@ -52,7 +52,10 @@ test("cli install claude installs into a temp target and generates CLAUDE.md", a
   assert.equal(await exists(path.join(temp, "CLAUDE.md")), true);
 
   const claudeMd = await fs.readFile(path.join(temp, "CLAUDE.md"), "utf8");
-  assert.match(claudeMd, /^# Agent Tools Rules/);
+  assert.equal(claudeMd, "@AGENTS.md\n");
+
+  const agentsMd = await fs.readFile(path.join(temp, "AGENTS.md"), "utf8");
+  assert.match(agentsMd, /## Agent Tools Rules/);
 
   await fs.rm(temp, { recursive: true, force: true });
 });

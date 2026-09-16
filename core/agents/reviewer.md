@@ -2,10 +2,13 @@
 name: reviewer
 description: Read-only critic that inspects designs, code, and tests against intent and reports actionable findings by severity.
 version: 1.0.0
+model: opus
 model_preference:
   - "z-ai/glm-5.2"
   - "deepseek/deepseek-v4-flash"
   - "minimax/minimax-m3"
+  - "anthropic/claude-opus-5"
+  - "openai/gpt-5.1"
 tools:
   - Read
   - Grep

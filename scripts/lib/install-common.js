@@ -175,34 +175,87 @@ export async function installManifestMcp(manifest, destinationRoot, { force = fa
   }
 }
 
-export async function buildRulesDocument() {
-  const rulesDir = path.join(ROOT, "core", "rules");
-  if (!(await exists(rulesDir))) {
-    return "# Agent Tools Rules\n";
-  }
+// CLAUDE.md must never become a second source of truth alongside a
+// project's own AGENTS.md. So CLAUDE.md's *only* content is `@AGENTS.md` —
+// Claude Code's own import syntax — and the actual portable rules content
+// (core/rules/*.md) is merged into AGENTS.md instead, under a marker-bounded
+// section so re-running the merge replaces just that section rather than
+// duplicating it or disturbing anything else in the file.
+const RULES_MARKER_START = "<!-- agent-tools:rules:start -->";
+const RULES_MARKER_END = "<!-- agent-tools:rules:end -->";
 
-  const files = (await fs.readdir(rulesDir))
-    .filter(file => file.endsWith(".md"))
-    .sort();
-
-  let output = "# Agent Tools Rules\n\n";
-
-  for (const file of files) {
-    output += await fs.readFile(path.join(rulesDir, file), "utf8");
-    output += "\n\n";
-  }
-
-  return output.trim() + "\n";
+// Demote every markdown heading by two levels (# -> ###, ## -> ####) so a
+// rule file's own `# Coding Style` / `## General` nests correctly under the
+// `## Agent Tools Rules` wrapper heading instead of colliding with it as a
+// sibling top-level heading.
+function demoteHeadings(markdown) {
+  return markdown.replace(/^(#+)(\s)/gm, "##$1$2");
 }
 
+export async function buildRulesSection() {
+  const rulesDir = path.join(ROOT, "core", "rules");
+  let body = "## Agent Tools Rules\n\n";
+
+  if (await exists(rulesDir)) {
+    const files = (await fs.readdir(rulesDir))
+      .filter(file => file.endsWith(".md"))
+      .sort();
+
+    for (const file of files) {
+      body += demoteHeadings(await fs.readFile(path.join(rulesDir, file), "utf8"));
+      body += "\n\n";
+    }
+  }
+
+  body = body.trim() + "\n";
+  return `${RULES_MARKER_START}\n${body}\n${RULES_MARKER_END}\n`;
+}
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Merge the portable rules section into `agentsFile`, creating it if
+ * missing. Idempotent: replaces the previously-merged marker-bounded section
+ * in place rather than appending a duplicate on every re-run.
+ */
+export async function mergeRulesIntoAgentsFile(agentsFile) {
+  const section = await buildRulesSection();
+  const markerRe = new RegExp(`${escapeRegExp(RULES_MARKER_START)}[\\s\\S]*?${escapeRegExp(RULES_MARKER_END)}\\n?`);
+
+  let existing = "";
+  if (await exists(agentsFile)) {
+    existing = await fs.readFile(agentsFile, "utf8");
+  }
+
+  const updated = markerRe.test(existing)
+    ? existing.replace(markerRe, section)
+    : existing.trim().length > 0
+      ? `${existing.trim()}\n\n${section}`
+      : section;
+
+  await ensureDir(path.dirname(agentsFile));
+  await fs.writeFile(agentsFile, updated, "utf8");
+}
+
+/**
+ * Write `file` (a project's CLAUDE.md) as exactly `@AGENTS.md` — nothing
+ * else — merging the portable rules content into that project's sibling
+ * AGENTS.md (creating it if it doesn't exist) rather than duplicating the
+ * content into CLAUDE.md itself.
+ */
 export async function writeRulesDocument(file, { force = false } = {}) {
+  const projectDir = path.dirname(file);
+  await mergeRulesIntoAgentsFile(path.join(projectDir, "AGENTS.md"));
+
   if (!force && (await exists(file))) {
     warn(`${path.basename(file)} exists, skipping`);
     return false;
   }
 
-  await ensureDir(path.dirname(file));
-  await fs.writeFile(file, await buildRulesDocument(), "utf8");
+  await ensureDir(projectDir);
+  await fs.writeFile(file, "@AGENTS.md\n", "utf8");
   ok(`Generated ${path.basename(file)}`);
   return true;
 }

@@ -3,6 +3,7 @@ dist/
 .claude/
 .opencode/
 .pi/
+.agent/
 
 # Python bytecode from the skill tools (run via `uv run --script`)
 __pycache__/

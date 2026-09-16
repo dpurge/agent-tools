@@ -64,6 +64,22 @@ program
   });
 
 program
+  .command("validate-specs")
+  .description("Validate a specs directory against the constitution and feature-spec formats")
+  .option("-t, --target-dir <dir>", "project to check", process.cwd())
+  .option("-d, --dir <path>", "specs directory to check directly, e.g. .agent/specs (overrides --target-dir/specs)")
+  .action(async options => {
+    const args = [];
+    if (options.targetDir) {
+      args.push(`--target=${options.targetDir}`);
+    }
+    if (options.dir) {
+      args.push(`--dir=${options.dir}`);
+    }
+    process.exit(await run("validate-specs.js", args));
+  });
+
+program
   .command("install")
   .argument("<target>", "claude | opencode | pi")
   .option("-f, --force", "overwrite existing files")

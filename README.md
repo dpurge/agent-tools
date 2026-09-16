@@ -7,9 +7,10 @@ Author the assets once under `core/`, describe them in one manifest
 (`agent-tools.yaml`), and let the build assemble a platform-specific package for
 each target.
 
-**Commands:** software workflows (`/feature-development`, `/bug-investigation`,
-`/release`, `/doc-review`), research write-ups (`/research`), Anki flashcards
-(`/anki`), ebooks and language readers (`/ebook`), and fiction (`/story`).
+**Commands:** spec-driven development (`/code`), software workflows
+(`/bug-investigation`, `/release`, `/doc-review`), research write-ups
+(`/research`), Anki flashcards (`/anki`), ebooks and language readers
+(`/ebook`), and fiction (`/story`).
 
 ## Quick orientation for contributors and coding agents
 
@@ -73,10 +74,13 @@ declares the tools and permissions it needs.
 name: reviewer
 description: Read-only critic that inspects designs, code, and tests against intent.
 version: 1.0.0
+model: opus
 model_preference:
   - "z-ai/glm-5.2"
   - "deepseek/deepseek-v4-flash"
   - "minimax/minimax-m3"
+  - "anthropic/claude-opus-5"
+  - "openai/gpt-5.1"
 tools:
   - Read
   - Grep
@@ -95,16 +99,19 @@ skills:
 ...
 ```
 
-The six roles are `researcher`, `architect`, `engineer`, `reviewer`,
-`technical-writer`, and `translator`.
+`model` is the alias Claude Code's native subagent loader reads (it ignores
+`model_preference`); `model_preference` is an ordered list of OpenRouter
+slugs for OpenCode and Pi, cheaper/open-weight options first.
+
+The eight roles are `researcher`, `architect`, `engineer`, `reviewer`,
+`technical-writer`, `translator`, `coordinator`, and `tester`.
 
 ### Workflows and commands are the product layer
 
 Workflows describe an end-to-end process; a matching command makes it runnable as a
-slash command. `feature-development` is both: the workflow
-(`core/workflows/feature-development.md`) documents the process, and the command
-(`core/commands/feature-development.md`) is installed as `/feature-development` on
-each platform.
+slash command. `code` is both: the workflow
+(`core/workflows/code.md`) documents the process, and the command
+(`core/commands/code.md`) is installed as `/code` on each platform.
 
 ### One manifest
 
@@ -126,26 +133,27 @@ models:
     free: "nvidia/nemotron-3-ultra-550b-a55b:free"
     # … long_context, multilingual
 
-skills:      # review · research · anki · phraseforge (+42 languages + shared format skill) · fiction
+skills:      # review · research · anki · phraseforge (+42 languages + shared format skill) · fiction · spec-driven dev
   - code-review
   - research-core
   - phraseforge-core
   - phraseforge-format
-  # … 56 total
+  - constitution-format
+  # … 59 total
 
-agents:      # architect · engineer · researcher · reviewer · technical-writer · translator
+agents:      # architect · coordinator · engineer · researcher · reviewer · tester · technical-writer · translator
   - reviewer
   - translator
   # …
 
 workflows:   # commands share the same names
-  - feature-development
+  - code
   - research
   - ebook
   - story
   # …
 
-commands: [feature-development, bug-investigation, release, doc-review, research, anki, ebook, story]
+commands: [code, bug-investigation, release, doc-review, research, anki, ebook, story]
 
 extensions:
   mcp: [rosetta, github, filesystem]
@@ -175,10 +183,11 @@ agent-tools/
 │   │   ├── research-core/ · research-web/ · research-typst/   # research (RAG + MDX + A5 PDF)
 │   │   ├── anki-comp/ · anki-vocabulary/           # flashcard authoring
 │   │   ├── phraseforge-core/ · phraseforge-ebook/ · phraseforge-lang-<iso> (×42)  # language readers
+│   │   ├── constitution-format/ · feature-spec-format/ · memory-format/  # /code's specs/ file formats
 │   │   └── fiction-writing/ · fiction-review/      # fiction authoring + adversarial review
-│   ├── agents/                   # architect, engineer, researcher, reviewer, technical-writer, translator
-│   ├── workflows/                # feature-development, bug-investigation, release, doc-review, research, anki, ebook, story
-│   ├── commands/                 # feature-development, bug-investigation, release, doc-review, research, anki, ebook, story
+│   ├── agents/                   # architect, coordinator, engineer, researcher, reviewer, tester, technical-writer, translator
+│   ├── workflows/                # code, bug-investigation, release, doc-review, research, anki, ebook, story
+│   ├── commands/                 # code, bug-investigation, release, doc-review, research, anki, ebook, story
 │   ├── rules/                    # coding-style, git, security
 │   └── prompts/                  # system-overrides
 │
@@ -359,8 +368,10 @@ Each installer copies the manifest-listed skills, agents, workflows, commands, a
 shared rules into the platform directory (`.claude/`, `.opencode/`, `.pi/`),
 installs the plugin or extension, and wires up platform configuration:
 
-- **Claude Code** — generates `CLAUDE.md` from the rules, installs commands to
-  `.claude/commands/`, and merges `.claude/settings.json`.
+- **Claude Code** — merges the rules into the project's `AGENTS.md` (creating
+  it if needed) and writes `CLAUDE.md` as exactly `@AGENTS.md` — Claude
+  Code's own import syntax — so `CLAUDE.md` never becomes a second source of
+  truth; installs commands to `.claude/commands/`; merges `.claude/settings.json`.
 - **OpenCode** — installs commands to `.opencode/commands/`, installs the plugin
   to `.opencode/plugins/agent-tools`, and merges `.opencode/opencode.json`
   including a plugin entry so the runtime plugin can load.
@@ -400,6 +411,8 @@ agent-tools install claude
 
 ```txt
 agent-tools validate                    Validate the toolkit wiring
+agent-tools validate-specs              Validate a project's specs/ (constitution + feature-spec formats)
+    -t, --target-dir <dir>              project to check (default: current directory)
 agent-tools build                       Assemble the platform packages from core/
 agent-tools install <target>            Install into a project (claude | opencode | pi)
     -f, --force                         overwrite existing files
@@ -416,10 +429,11 @@ agent-tools uninstall-editable <target> Uninstall editable mode (claude | openco
 | Script | Purpose |
 | ------ | ------- |
 | `npm run validate` | Validate manifest, assets, and package wiring |
+| `npm run validate:specs` | Validate a project's `specs/` against the constitution, feature-spec, and memory formats |
 | `npm run build` | Assemble each `packages/*` from `core/` |
 | `npm run test:scripts` | Run root-level script and CLI integration tests |
 | `npm run test:packages` | Run each package's own tests |
-| `npm test` | `validate` + `test:scripts` + `test:packages` |
+| `npm test` | `validate` + `validate:specs` + `test:scripts` + `test:packages` |
 | `npm run set-version <version>` | Set one version across root, packages, and manifest |
 | `npm run install:dev` | Build and `npm link` the `agent-tools` CLI |
 | `npm run install:claude` \| `:opencode` \| `:pi` | Copy-install into a target project |
@@ -429,8 +443,11 @@ agent-tools uninstall-editable <target> Uninstall editable mode (claude | openco
 ## Running on OpenRouter (cost-effective models)
 
 By default the agents prefer inexpensive OpenRouter models rather than frontier
-Anthropic models. Routing lives in `agent-tools.yaml` `models:` (the single source
-of truth) and each agent's `model_preference`:
+Anthropic/OpenAI models — each agent's `model_preference` (used by OpenCode and
+Pi) lists the cheap/free OpenRouter picks first, with Anthropic and OpenAI
+models — still routed through OpenRouter — appended after them as fallbacks.
+Routing lives in `agent-tools.yaml` `models:` (the single source of truth) and
+each agent's `model_preference`:
 
 | Tier | Model | ~Price /M (in/out) |
 | ---- | ----- | ------------------ |
@@ -446,6 +463,11 @@ use cheap paid models first. **Free tiers are rate-limited and may train on
 submitted data**, so the balanced policy keeps private/heavy work on paid models.
 Slugs and prices drift — re-check them on openrouter.ai and update
 `agent-tools.yaml`.
+
+Each agent's frontmatter also carries a `model:` field — Claude Code's own
+native subagent alias (`opus`, `sonnet`, `haiku`, `fable`, or `inherit`).
+Claude Code reads this directly and ignores `model_preference` entirely;
+OpenCode and Pi read `model_preference` and ignore `model`.
 
 ### OpenCode (wired)
 
@@ -469,12 +491,14 @@ Point Pi at OpenRouter (an OpenAI-compatible endpoint) and set the default model
 }
 ```
 
-### Claude Code (via a gateway)
+### Claude Code
 
-Claude Code speaks the Anthropic API, so route it through an OpenRouter→Anthropic
-gateway (an OpenRouter-compatible Anthropic endpoint, or a router such as
-`claude-code-router`). It does **not** read `model_preference` — set the models via
-env/router using the slugs above:
+Claude Code reads each agent's `model:` field natively — no setup needed; this
+is the default. To instead route Claude Code itself through OpenRouter (e.g. to
+reach a specific OpenRouter-hosted model by slug for the whole session), put it
+behind an OpenRouter→Anthropic gateway (an OpenRouter-compatible Anthropic
+endpoint, or a router such as `claude-code-router`) — this bypasses each
+agent's `model:` field and applies one model session-wide via env/router:
 
 ```sh
 export ANTHROPIC_BASE_URL="https://<your-openrouter-anthropic-gateway>"
@@ -506,8 +530,8 @@ set of self-contained, packable directories.
 Releases are cut from GitHub Actions:
 
 - **`.github/workflows/build.yml`** runs on every pull request to `main`:
-  `validate` → `build` → `test:scripts` → `test:packages` → `npm pack --dry-run`
-  on Node 20 and 22.
+  `validate` → `validate:specs` → `build` → `test:scripts` → `test:packages` →
+  `npm pack --dry-run` on Node 20 and 22.
 - **`.github/workflows/release.yml`** is triggered manually (`workflow_dispatch`)
   with a `patch` / `minor` / `major` bump. It bumps the version across the
   workspace, builds and tests, packs every package into tarballs, creates the

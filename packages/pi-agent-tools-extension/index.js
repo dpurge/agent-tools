@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createSubagentTool } from "./subagent-tool.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -163,10 +164,13 @@ export function createExtension(root = resolveAssetRoot()) {
       registered.push(name);
     }
 
+    pi.registerTool(createSubagentTool(root));
+
     return {
       name: "agent-tools",
       commands: registered,
       components,
+      tools: ["subagent"],
     };
   };
 }

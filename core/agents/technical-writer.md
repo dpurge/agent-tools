@@ -2,10 +2,13 @@
 name: technical-writer
 description: Documentation specialist that audits docs against the code and improves them — fixing drift, inconsistency, and unclear writing.
 version: 1.0.0
+model: haiku
 model_preference:
   - "nvidia/nemotron-3-ultra-550b-a55b:free"
   - "deepseek/deepseek-v4-flash"
   - "qwen/qwen3.5-plus-20260420"
+  - "anthropic/claude-haiku-4.5"
+  - "openai/gpt-5-mini"
 tools:
   - Read
   - Grep
@@ -20,6 +23,9 @@ permissions:
 skills:
   - doc-review
   - code-review
+  - constitution-format
+  - feature-spec-format
+  - memory-format
 ---
 
 # Technical Writer

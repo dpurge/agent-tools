@@ -33,8 +33,8 @@ function makeFixture() {
 
   fs.mkdirSync(path.join(root, "commands"), { recursive: true });
   fs.writeFileSync(
-    path.join(root, "commands", "feature-development.md"),
-    "# Feature Development\n\nDo the thing.\n"
+    path.join(root, "commands", "sample-feature.md"),
+    "# Sample Feature\n\nDo the thing.\n"
   );
   fs.writeFileSync(
     path.join(root, "commands", "bug-investigation.md"),
@@ -48,16 +48,21 @@ function makeFixture() {
 /** Minimal Pi stub that records registered commands and notifications. */
 function makePiStub() {
   const commands = new Map();
+  const tools = new Map();
   const notifications = [];
   const ctxNotifications = [];
   const sentMessages = [];
   return {
     commands,
+    tools,
     notifications,
     ctxNotifications,
     sentMessages,
     registerCommand(name, config) {
       commands.set(name, config);
+    },
+    registerTool(tool) {
+      tools.set(tool.name, tool);
     },
     sendUserMessage(message, options) {
       sentMessages.push({ message, options });
@@ -112,7 +117,7 @@ test("loadComponents classifies skills (dirs) vs agents/workflows/commands (file
   assert.deepEqual(components.skills, ["architecture-review", "code-review"]);
   assert.deepEqual(components.agents, ["engineer", "reviewer"]);
   assert.deepEqual(components.workflows, ["release"]);
-  assert.deepEqual(components.commands, ["bug-investigation", "feature-development", "release"]);
+  assert.deepEqual(components.commands, ["bug-investigation", "release", "sample-feature"]);
 });
 
 test("resolveAssetRoot prefers the base, then the grandparent, else base", () => {
@@ -134,7 +139,7 @@ test("resolveAssetRoot prefers the base, then the grandparent, else base", () =>
 });
 
 test("readCommand returns file contents or null", () => {
-  assert.match(readCommand(fixture, "feature-development"), /Feature Development/);
+  assert.match(readCommand(fixture, "sample-feature"), /Sample Feature/);
   assert.equal(readCommand(fixture, "nope"), null);
 });
 
@@ -153,13 +158,21 @@ test("registers the listing commands plus one per command file", () => {
   const result = createExtension(fixture)(pi);
   assert.deepEqual(
     [...pi.commands.keys()].sort(),
-    ["agent-tools", "agents", "bug-investigation", "feature-development", "release", "skills", "workflows"]
+    ["agent-tools", "agents", "bug-investigation", "release", "sample-feature", "skills", "workflows"]
   );
   assert.deepEqual(result.commands.sort(), [...pi.commands.keys()].sort());
   for (const [, config] of pi.commands) {
     assert.equal(typeof config.description, "string");
     assert.equal(typeof config.handler, "function");
   }
+});
+
+test("registers the subagent tool", () => {
+  const pi = makePiStub();
+  const result = createExtension(fixture)(pi);
+  assert.deepEqual(result.tools, ["subagent"]);
+  assert.ok(pi.tools.has("subagent"));
+  assert.equal(typeof pi.tools.get("subagent").execute, "function");
 });
 
 test("overview handler lists all component types", async () => {
@@ -170,7 +183,7 @@ test("overview handler lists all component types", async () => {
   assert.match(message, /Skills: architecture-review, code-review/);
   assert.match(message, /Agents: engineer, reviewer/);
   assert.match(message, /Workflows: release/);
-  assert.match(message, /Commands: bug-investigation, feature-development, release/);
+  assert.match(message, /Commands: bug-investigation, release, sample-feature/);
 });
 
 test("list handlers emit their entries", async () => {
@@ -193,9 +206,9 @@ test("each command handler sends its markdown as a user message", async () => {
   const pi = makePiStub();
   createExtension(fixture)(pi);
 
-  await pi.commands.get("feature-development").handler("add login", pi.makeCtx());
+  await pi.commands.get("sample-feature").handler("add login", pi.makeCtx());
   let sent = pi.sentMessages.at(-1);
-  assert.match(sent.message, /Feature Development/);
+  assert.match(sent.message, /Sample Feature/);
   assert.equal(sent.options, undefined);
 
   await pi.commands.get("bug-investigation").handler("", pi.makeCtx({ isIdle: () => false }));

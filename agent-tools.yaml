@@ -25,6 +25,9 @@ skills:
   - code-review
   - security-review
   - doc-review
+  - constitution-format
+  - feature-spec-format
+  - memory-format
   - research-core
   - research-web
   - research-typst
@@ -80,14 +83,16 @@ skills:
 
 agents:
   - architect
+  - coordinator
   - engineer
   - researcher
   - reviewer
+  - tester
   - technical-writer
   - translator
 
 workflows:
-  - feature-development
+  - code
   - bug-investigation
   - release
   - doc-review
@@ -97,7 +102,7 @@ workflows:
   - story
 
 commands:
-  - feature-development
+  - code
   - bug-investigation
   - release
   - doc-review

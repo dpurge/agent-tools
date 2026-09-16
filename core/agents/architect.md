@@ -2,10 +2,13 @@
 name: architect
 description: Turns requirements and research into a clear technical design and implementation plan. Designs, does not implement.
 version: 1.0.0
+model: opus
 model_preference:
   - "z-ai/glm-5.2"
   - "minimax/minimax-m3"
   - "deepseek/deepseek-v4-flash"
+  - "anthropic/claude-opus-5"
+  - "openai/gpt-5.1"
 tools:
   - Read
   - Grep

@@ -16,9 +16,11 @@
 
   "agent": {
     "architect": { "model": "openrouter/z-ai/glm-5.2" },
+    "coordinator": { "model": "openrouter/z-ai/glm-5.2" },
     "engineer": { "model": "openrouter/deepseek/deepseek-v4-flash" },
     "researcher": { "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free" },
     "reviewer": { "model": "openrouter/z-ai/glm-5.2" },
+    "tester": { "model": "openrouter/deepseek/deepseek-v4-flash" },
     "technical-writer": { "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free" },
     "translator": { "model": "openrouter/deepseek/deepseek-v4-flash" }
   },

@@ -3,9 +3,11 @@
 import path from "node:path";
 import {
   ROOT,
-  createSymlink,
+  claudeHomeDir,
   ensureDir,
   fail,
+  linkDirectoryEntries,
+  mergeRulesIntoAgentsFile,
   ok,
   parseEditableInstallerArgs,
   readJson,
@@ -14,8 +16,8 @@ import {
 } from "./lib/install-common.js";
 
 const { force, targetDir } = parseEditableInstallerArgs();
-const projectDir = targetDir ?? ROOT;
-const claudeDir = path.join(projectDir, ".claude");
+const globalInstall = !targetDir;
+const claudeDir = globalInstall ? claudeHomeDir() : path.join(targetDir, ".claude");
 
 async function mergeSettings() {
   const settingsFile = path.join(claudeDir, "settings.json");
@@ -32,15 +34,23 @@ async function mergeSettings() {
 }
 
 async function main() {
-  console.log("\nInstalling editable agent-tools for Claude Code\n");
+  console.log(`\nInstalling editable agent-tools for Claude Code${globalInstall ? " (global)" : ""}\n`);
 
   await ensureDir(claudeDir);
 
   for (const dir of ["skills", "agents", "workflows", "commands", "rules"]) {
-    await createSymlink(path.join(ROOT, "core", dir), path.join(claudeDir, dir), { force });
+    await linkDirectoryEntries(path.join(ROOT, "core", dir), path.join(claudeDir, dir), { force });
   }
 
-  await writeRulesDocument(path.join(projectDir, "CLAUDE.md"), { force });
+  if (globalInstall) {
+    // No project root to hold a sibling AGENTS.md at user scope, so the
+    // rules section is merged directly into the global CLAUDE.md instead of
+    // the project-local `@AGENTS.md` indirection writeRulesDocument uses.
+    await mergeRulesIntoAgentsFile(path.join(claudeDir, "CLAUDE.md"));
+  } else {
+    await writeRulesDocument(path.join(targetDir, "CLAUDE.md"), { force });
+  }
+
   await mergeSettings();
 
   console.log(`
@@ -60,6 +70,12 @@ Behavior:
   - changes to core/ are visible without reinstalling
   - restart Claude Code if a running session does not pick up changes
 `);
+
+  if (globalInstall) {
+    ok("Installed globally for all Claude Code sessions");
+  } else {
+    ok("Installed project-locally for this project");
+  }
 }
 
 main().catch(err => {

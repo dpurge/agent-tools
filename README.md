@@ -296,12 +296,20 @@ without reinstalling or rebuilding.
 #### Install
 
 ```sh
+# global (all three targets install to the host's user-level config dir
+# when --target / --target-dir is omitted)
 npm run install:editable:pi
+npm run install:editable:claude
+npm run install:editable:opencode
+
+# project-local
 npm run install:editable:claude -- --target=/path/to/project
 npm run install:editable:opencode -- --target=/path/to/project
 
 # or, via the linked CLI:
 agent-tools install-editable pi
+agent-tools install-editable claude
+agent-tools install-editable opencode
 agent-tools install-editable claude --target-dir /path/to/project
 agent-tools install-editable opencode --target-dir /path/to/project
 ```
@@ -309,14 +317,23 @@ agent-tools install-editable opencode --target-dir /path/to/project
 Editable mode by target:
 
 - **Pi** — installs a global extension shim under `~/.pi/agent/extensions/`
-  (or project-local under `.pi/extensions/` if `--target` / `--target-dir` is
-  given). That shim loads `adapters/pi/index.js`, which reads the repo's `core/`
-  assets directly at runtime.
-- **Claude Code** — creates symlinks from `.claude/{skills,agents,workflows,commands,rules}`
-  into this repo's `core/` directories and regenerates `CLAUDE.md`.
-- **OpenCode** — creates symlinks from `.opencode/{skills,agents,workflows,commands,rules}`
-  into this repo's `core/` directories, writes `.opencode/opencode.json`, and
-  installs a small plugin shim under `.opencode/plugins/agent-tools/index.js`.
+  (or `$PI_CODING_AGENT_DIR/extensions/` if that env var is set; project-local
+  under `.pi/extensions/` if `--target` / `--target-dir` is given). That shim
+  loads `adapters/pi/index.js`, which reads the repo's `core/` assets directly
+  at runtime.
+- **Claude Code** — with no `--target` / `--target-dir`, creates symlinks from
+  `$CLAUDE_CONFIG_DIR/{skills,agents,workflows,commands,rules}` (defaulting to
+  `~/.claude/`) into this repo's `core/` directories, and merges the rules
+  section directly into `~/.claude/CLAUDE.md` — Claude Code's own user-level
+  memory file — rather than generating one. With `--target`, it installs
+  project-locally under `.claude/{skills,agents,workflows,commands,rules}` and
+  regenerates the project's `CLAUDE.md` instead.
+- **OpenCode** — with no `--target` / `--target-dir`, creates symlinks from
+  `$OPENCODE_CONFIG_DIR/{skills,agents,workflows,commands,rules}` (defaulting
+  to `${XDG_CONFIG_HOME:-~/.config}/opencode/`) into this repo's `core/`
+  directories, writes its `opencode.json`, and installs a small plugin shim
+  under `plugins/agent-tools/index.js`. With `--target`, it installs
+  project-locally under `.opencode/` instead.
 
 For Pi, new sessions see `core/commands` automatically; for a running Pi session,
 use `/reload` or restart Pi. For Claude/OpenCode, restart the host if a running
@@ -332,11 +349,15 @@ Editable installs can be removed with matching uninstall scripts:
 
 ```sh
 npm run uninstall:editable:pi
+npm run uninstall:editable:claude
+npm run uninstall:editable:opencode
 npm run uninstall:editable:claude -- --target=/path/to/project
 npm run uninstall:editable:opencode -- --target=/path/to/project
 
 # or, via the linked CLI:
 agent-tools uninstall-editable pi
+agent-tools uninstall-editable claude
+agent-tools uninstall-editable opencode
 agent-tools uninstall-editable claude --target-dir /path/to/project
 agent-tools uninstall-editable opencode --target-dir /path/to/project
 ```
@@ -348,13 +369,19 @@ What each uninstaller removes:
   - then restart Pi or run `/reload` in a running session
 - **Pi project-local editable install**
   - `/path/to/project/.pi/extensions/agent-tools.ts`
-- **Claude editable install**
+- **Claude global editable install**
+  - `~/.claude/{skills,agents,workflows,commands,rules}` symlinks
+  - only the agent-tools rules section is stripped from `~/.claude/CLAUDE.md`
+    (marker-bounded); the rest of that file — a real, user-owned file — is
+    left untouched, and the file itself is deleted only if nothing else
+    remained in it
+- **Claude project-local editable install**
   - `.claude/{skills,agents,workflows,commands,rules}` symlinks
   - `CLAUDE.md`
-- **OpenCode editable install**
-  - `.opencode/{skills,agents,workflows,commands,rules}` symlinks
-  - `.opencode/plugins/agent-tools`
-  - removes `./plugins/agent-tools` from `.opencode/opencode.json`
+- **OpenCode global/project-local editable install**
+  - `{skills,agents,workflows,commands,rules}` symlinks
+  - `plugins/agent-tools`
+  - removes `./plugins/agent-tools` from `opencode.json`
 
 ### Using the install scripts directly
 

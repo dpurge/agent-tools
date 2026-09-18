@@ -240,6 +240,40 @@ export async function mergeRulesIntoAgentsFile(agentsFile) {
 }
 
 /**
+ * Strip the marker-bounded agent-tools rules section out of `file`, leaving
+ * the rest of the file untouched. Used to uninstall a global editable
+ * install, where the target (e.g. `~/.claude/CLAUDE.md`) is a real,
+ * user-owned file that must not be deleted wholesale — only deleted outright
+ * if the merge left nothing else behind.
+ */
+export async function removeRulesSectionFromFile(file) {
+  if (!(await exists(file))) {
+    warn(`Nothing to remove: ${file}`);
+    return false;
+  }
+
+  const existing = await fs.readFile(file, "utf8");
+  const markerRe = new RegExp(`\\n*${escapeRegExp(RULES_MARKER_START)}[\\s\\S]*?${escapeRegExp(RULES_MARKER_END)}\\n*`);
+
+  if (!markerRe.test(existing)) {
+    warn(`No agent-tools rules section found in: ${file}`);
+    return false;
+  }
+
+  const updated = existing.replace(markerRe, "\n").trim();
+
+  if (updated.length === 0) {
+    await fs.rm(file, { force: true });
+    ok(`Removed ${file}`);
+  } else {
+    await fs.writeFile(file, `${updated}\n`, "utf8");
+    ok(`Removed agent-tools rules section from ${file}`);
+  }
+
+  return true;
+}
+
+/**
  * Write `file` (a project's CLAUDE.md) as exactly `@AGENTS.md` — nothing
  * else — merging the portable rules content into that project's sibling
  * AGENTS.md (creating it if it doesn't exist) rather than duplicating the
@@ -281,6 +315,23 @@ export function piAgentDir() {
   return process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
 }
 
+// Claude Code's own env var for relocating its user-level config directory
+// (verified against Claude Code's own tooling, not assumed).
+export function claudeHomeDir() {
+  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
+}
+
+// OpenCode resolves its global config directory as OPENCODE_CONFIG_DIR, or
+// else `<XDG_CONFIG_HOME>/opencode` (XDG_CONFIG_HOME defaulting to ~/.config).
+export function opencodeHomeDir() {
+  if (process.env.OPENCODE_CONFIG_DIR) {
+    return process.env.OPENCODE_CONFIG_DIR;
+  }
+
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  return path.join(xdgConfigHome, "opencode");
+}
+
 export async function createSymlink(source, destination, { force = false } = {}) {
   await ensureDir(path.dirname(destination));
 
@@ -297,6 +348,89 @@ export async function createSymlink(source, destination, { force = false } = {})
   await fs.symlink(source, destination, type);
   ok(`Linked ${destination} -> ${source}`);
   return true;
+}
+
+/**
+ * Link `source`'s contents into `destination`. When `destination` doesn't
+ * exist yet (or is already a symlink of ours), this is a single directory
+ * symlink — the previous, simpler behavior, still correct for a dedicated
+ * project-local `.claude/`. But a shared, user-scoped directory like
+ * `~/.claude/skills` commonly already exists as a real directory aggregating
+ * individually-symlinked entries from other sources — clobbering it with one
+ * big symlink would erase all of that. In that case, merge instead: leave
+ * the existing directory as-is and symlink each of `source`'s entries into
+ * it individually, alongside whatever is already there.
+ */
+export async function linkDirectoryEntries(source, destination, { force = false } = {}) {
+  if (!(await exists(source))) {
+    return;
+  }
+
+  if (!(await exists(destination))) {
+    await createSymlink(source, destination, { force });
+    return;
+  }
+
+  const destStat = await fs.lstat(destination);
+  if (destStat.isSymbolicLink()) {
+    await createSymlink(source, destination, { force });
+    return;
+  }
+
+  await ensureDir(destination);
+  const entries = await fs.readdir(source, { withFileTypes: true });
+  for (const entry of entries) {
+    await createSymlink(path.join(source, entry.name), path.join(destination, entry.name), { force });
+  }
+}
+
+/**
+ * Undo `linkDirectoryEntries`. If `destination` is itself a symlink, remove
+ * it outright (mirrors the simple case above). Otherwise it's a shared,
+ * merged directory: remove only the entries that are symlinks pointing
+ * exactly at the matching entry under `source` — anything else in that
+ * directory belongs to another source and must be left alone.
+ */
+export async function unlinkDirectoryEntries(source, destination) {
+  if (!(await exists(destination))) {
+    warn(`Nothing to remove: ${destination}`);
+    return false;
+  }
+
+  const destStat = await fs.lstat(destination);
+  if (destStat.isSymbolicLink()) {
+    return removePath(destination);
+  }
+
+  if (!(await exists(source))) {
+    return false;
+  }
+
+  const entries = await fs.readdir(source, { withFileTypes: true });
+  let removedAny = false;
+
+  for (const entry of entries) {
+    const linkPath = path.join(destination, entry.name);
+    if (!(await exists(linkPath))) {
+      continue;
+    }
+
+    const linkStat = await fs.lstat(linkPath);
+    if (!linkStat.isSymbolicLink()) {
+      continue;
+    }
+
+    const resolvedTarget = path.resolve(path.dirname(linkPath), await fs.readlink(linkPath));
+    if (resolvedTarget !== path.resolve(source, entry.name)) {
+      continue;
+    }
+
+    await fs.rm(linkPath, { recursive: true, force: true });
+    ok(`Removed ${linkPath}`);
+    removedAny = true;
+  }
+
+  return removedAny;
 }
 
 export async function writeExtensionShim(file, targetModulePath, { force = false } = {}) {

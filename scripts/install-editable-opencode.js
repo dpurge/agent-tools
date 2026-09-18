@@ -3,11 +3,12 @@
 import path from "node:path";
 import {
   ROOT,
-  createSymlink,
   ensureArrayIncludes,
   ensureDir,
   fail,
+  linkDirectoryEntries,
   ok,
+  opencodeHomeDir,
   parseEditableInstallerArgs,
   readJson,
   writeExtensionShim,
@@ -15,8 +16,8 @@ import {
 } from "./lib/install-common.js";
 
 const { force, targetDir } = parseEditableInstallerArgs();
-const projectDir = targetDir ?? ROOT;
-const opencodeDir = path.join(projectDir, ".opencode");
+const globalInstall = !targetDir;
+const opencodeDir = globalInstall ? opencodeHomeDir() : path.join(targetDir, ".opencode");
 
 async function mergeConfig() {
   const configFile = path.join(opencodeDir, "opencode.json");
@@ -34,12 +35,12 @@ async function mergeConfig() {
 }
 
 async function main() {
-  console.log("\nInstalling editable agent-tools for OpenCode\n");
+  console.log(`\nInstalling editable agent-tools for OpenCode${globalInstall ? " (global)" : ""}\n`);
 
   await ensureDir(opencodeDir);
 
   for (const dir of ["skills", "agents", "workflows", "commands", "rules"]) {
-    await createSymlink(path.join(ROOT, "core", dir), path.join(opencodeDir, dir), { force });
+    await linkDirectoryEntries(path.join(ROOT, "core", dir), path.join(opencodeDir, dir), { force });
   }
 
   await writeExtensionShim(
@@ -74,6 +75,12 @@ Note:
   still do not appear automatically we should add explicit runtime registration
   in an OpenCode plugin as a follow-up.
 `);
+
+  if (globalInstall) {
+    ok("Installed globally for all OpenCode sessions");
+  } else {
+    ok("Installed project-locally for this OpenCode workspace");
+  }
 }
 
 main().catch(err => {

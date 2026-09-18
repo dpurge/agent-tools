@@ -316,8 +316,12 @@ rule even between checkpoints — see there.
 ### B4. Documentation review
 
 1. `technical-writer` applies the `doc-review` skill against the docs this
-   feature could have affected — README, other project docs, **and** the
-   constitution files — looking for drift this change caused.
+   feature could have affected — README, `CHANGELOG.md`, other project docs,
+   **and** the constitution files — looking for drift this change caused.
+   For `CHANGELOG.md`, drift also means a missing entry: any user-facing
+   change (behavior, CLI surface, config, public API) needs one under
+   `## [Unreleased]`; a purely internal change (refactor, test-only,
+   docs-only) does not.
 2. If drift touches a constitution file, that's replanning too: run
    [Updating an approved file](#updating-an-approved-file) for it, gated by
    the human like any other constitution change.
@@ -328,8 +332,16 @@ rule even between checkpoints — see there.
 
 1. `technical-writer` applies the approved documentation changes (README,
    other docs; constitution changes are already handled by their own gate
-   in B4). Record what changed, where, in *Documentation Updates* — for a
-   constitution change, point to it rather than duplicating it here.
+   in B4). If B4 flagged a missing `CHANGELOG.md` entry, add one now: under
+   `## [Unreleased]`, in the matching
+   [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) category
+   (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, or `Security`), one
+   line, user-facing, sourced from *Acceptance Criteria*/*Implementation
+   Notes* — never invented. If the project has no `CHANGELOG.md` yet, create
+   it at the project root with the standard Keep a Changelog header and an
+   empty `## [Unreleased]` before adding the entry. Record what changed,
+   where, in *Documentation Updates* — for a constitution change, point to
+   it rather than duplicating it here.
 2. If anything durable and reusable surfaced during this feature that
    didn't already get appended in B2 (e.g. a documentation-review finding
    worth remembering), `technical-writer` appends it to `memory.md` now,

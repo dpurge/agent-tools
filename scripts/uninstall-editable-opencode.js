@@ -4,22 +4,24 @@ import path from "node:path";
 import {
   ROOT,
   fail,
+  opencodeHomeDir,
   parseEditableInstallerArgs,
   readJson,
   removeArrayValue,
   removePath,
+  unlinkDirectoryEntries,
   writeJson,
 } from "./lib/install-common.js";
 
 const { targetDir } = parseEditableInstallerArgs();
-const projectDir = targetDir ?? ROOT;
-const opencodeDir = path.join(projectDir, ".opencode");
+const globalInstall = !targetDir;
+const opencodeDir = globalInstall ? opencodeHomeDir() : path.join(targetDir, ".opencode");
 
 async function main() {
-  console.log("\nUninstalling editable agent-tools for OpenCode\n");
+  console.log(`\nUninstalling editable agent-tools for OpenCode${globalInstall ? " (global)" : ""}\n`);
 
   for (const name of ["skills", "agents", "workflows", "commands", "rules"]) {
-    await removePath(path.join(opencodeDir, name));
+    await unlinkDirectoryEntries(path.join(ROOT, "core", name), path.join(opencodeDir, name));
   }
   await removePath(path.join(opencodeDir, "plugins", "agent-tools"));
 

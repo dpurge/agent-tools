@@ -123,7 +123,10 @@ draw on the same sources (README, manifests, CI config, existing docs), so
 gather once rather than per file:
 
 - **Mission:** what does this project do today, what problem does the code
-  solve, who or what consumes it? Quote `path:line` for every claim.
+  solve, who or what consumes it? Every claim must trace to something the
+  researcher actually read — but don't quote `path:line` in the draft
+  itself; note it for [A4](#a4--approval-gate--constitution) instead. A
+  citation baked into `mission.md` goes stale the moment the line moves.
 - **Tech stack:** languages, runtimes, frameworks, key libraries, build
   tooling, CI/CD, deployment targets — read manifests/lockfiles/CI configs,
   don't infer from vibes.
@@ -196,9 +199,11 @@ no concrete feature or bugfix in mind yet, ask the user what to work on
 before starting B1 — don't guess.
 
 `<slug>` is a short kebab-case name derived from the title (e.g.
-`oauth-login`, `fix-cache-race`). If resuming existing work, read the
-existing file instead of starting a fresh one — its `status` says which
-phase to resume at.
+`oauth-login`, `fix-cache-race`). If this feature already has a `Next` or
+`Later` line in `roadmap.md`, reuse that item's slug instead of deriving a
+new one, per the `constitution-format` skill's roadmap item-slug rule. If
+resuming existing work, read the existing file instead of starting a fresh
+one — its `status` says which phase to resume at.
 
 **Only `technical-writer` writes to this file**, at every phase — it
 transcribes what the read-only specialists (`researcher`, `architect`,
@@ -256,15 +261,38 @@ rule even between checkpoints — see there.
 
 ### B2. Feature implementation
 
-1. **Establish a clean baseline.** Run `git status` and `git branch` to see
-   what's already there and confirm which branch this lands on. `tester`
-   runs the project's real test/build commands once, before touching
-   anything — this is the baseline B3 compares against (regression vs.
-   pre-existing failure). If `git status` shows uncommitted changes:
-   **never discard them.** Tell the user what's there; only if a clean tree
-   is genuinely needed for a trustworthy baseline, offer to `git stash` with
-   a clearly labeled, recoverable message, and only with the user's
-   go-ahead — otherwise proceed on top of what's already there.
+1. **Establish a clean baseline and confirm the branch.** Run `git status`
+   and `git branch` to see what's already there. If `git status` shows
+   uncommitted changes: **never discard them.** Tell the user what's there;
+   only if a clean tree is genuinely needed for a trustworthy baseline,
+   offer to `git stash` with a clearly labeled, recoverable message, and
+   only with the user's go-ahead — otherwise proceed on top of what's
+   already there.
+
+   - **Resuming existing work** (the spec already has a `branch:` field):
+     confirm the working tree is actually on that branch; if not, tell the
+     user and offer to switch to it before continuing. Skip the rest of
+     this step.
+   - **Starting fresh:** determine the project's trunk branch — its actual
+     default branch (e.g. via `git symbolic-ref refs/remotes/origin/HEAD` if
+     a remote is configured), otherwise whichever of `main`/`master`/
+     `dev`/`develop`/`development` exists locally.
+     - If the current branch **is** the trunk: ask whether to create a new
+       branch named `<kind>/<slug>` (recommended) or stay on the trunk and
+       implement directly there. On "new branch," run `git checkout -b`.
+     - If the current branch is **not** the trunk (e.g. an unrelated branch
+       left over from other work): stop and confirm before doing anything —
+       tell the user what branch they're actually on and offer to switch to
+       the trunk first (default) or deliberately branch off the current one
+       instead. Then proceed with the branch-or-stay question above.
+     - Set the feature spec's `branch:` field to the result (the new
+       branch's name, or the trunk's name if staying), add a
+       `## Now` line to `roadmap.md`, and remove the matching `## Next`
+       line for this feature if one exists, per the `constitution-format`
+       skill. Run `validate-specs`.
+   - `tester` runs the project's real test/build commands once, before
+     touching anything — this is the baseline B3 compares against
+     (regression vs. pre-existing failure).
 2. `engineer` greps `memory.md` for `[build]`/`[gotcha]` entries relevant to
    the *Affected Areas* before starting, then implements per the approved
    *Approach*, staying inside *Affected Areas* and *Out of Scope*, following
@@ -339,9 +367,12 @@ rule even between checkpoints — see there.
    line, user-facing, sourced from *Acceptance Criteria*/*Implementation
    Notes* — never invented. If the project has no `CHANGELOG.md` yet, create
    it at the project root with the standard Keep a Changelog header and an
-   empty `## [Unreleased]` before adding the entry. Record what changed,
-   where, in *Documentation Updates* — for a constitution change, point to
-   it rather than duplicating it here.
+   empty `## [Unreleased]` before adding the entry. In the same edit, remove
+   this feature's `## Now` line from `roadmap.md` (per the
+   `constitution-format` skill — it's no longer current, it's in the
+   changelog) and run `validate-specs`. Record what changed, where, in
+   *Documentation Updates* — for a constitution change, point to it rather
+   than duplicating it here.
 2. If anything durable and reusable surfaced during this feature that
    didn't already get appended in B2 (e.g. a documentation-review finding
    worth remembering), `technical-writer` appends it to `memory.md` now,
@@ -367,6 +398,12 @@ rule even between checkpoints — see there.
    message/PR description from step 5. **Stop and wait** for approval
    before considering the feature/bugfix done, and before acting on the
    commit/PR draft at all.
+7. Once the commit from step 5 is made, run `git status` to confirm the
+   tree is clean, then say so in the delivery summary — e.g. "branch
+   `<branch>` is committed and clean, ready to merge into `<trunk>` when
+   you're ready." This is information, not an action: merging/pushing/
+   opening the PR still needs its own explicit approval per the git ground
+   rule.
 
 Once approved, ask whether there's another piece of work. If so, return to
 [B1](#b1-feature-specification) with a new slug.

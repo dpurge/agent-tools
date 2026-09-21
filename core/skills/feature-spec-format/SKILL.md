@@ -37,8 +37,15 @@ kind: feature                 # feature | bugfix
 status: draft                 # draft | approved | implementing | validating | documenting | done
 version: 1                    # int, starts at 1, incremented on each approved change to Specification
 updated: YYYY-MM-DD            # ISO date of the last write
+branch: feature/oauth-login   # set at B2 start; the branch this work lives on, or "main" (or the
+                               # project's other trunk name) if implemented directly there. Absent
+                               # before B2 starts.
 ---
 ```
+
+`branch` is set once, when B2 first asks the branch-strategy question, and never changes after
+that — if a session resumes this feature later, read `branch` instead of asking again; just
+confirm the working tree is actually on it.
 
 `status` only moves forward along
 `draft → approved → implementing → validating → documenting → done`, except

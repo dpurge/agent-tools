@@ -64,6 +64,90 @@ Fixed `##` sections, in order:
 Entirely evidence-grounded: read manifests, lockfiles, and CI config; never
 infer from vibes.
 
+### Artifacts
+
+An optional `### Artifacts` subsection nested inside `## Infrastructure &
+tooling` (not a new top-level `##` section — the fixed `##` list above is
+exact and order-enforced by `scripts/validate-specs.js`'s `checkSections`;
+a `###` subheading is invisible to that check, so adding this subsection
+never breaks an existing `tech-stack.md`). It declares every artifact the
+project produces — a published package, a deployed service or app, anything
+with its own release/consumer surface — so `/code`'s later phases can tell
+which changelog file(s) a given change needs an entry in.
+
+A table with these columns:
+
+- **Artifact** — the published or deployed name.
+- **Root** — the repo-relative directory the artifact is built from; `.` for
+  the artifact rooted at the repo itself.
+- **Changelog** — the repo-relative path to that artifact's changelog,
+  normally `<Root>/CHANGELOG.md`.
+- **Versioning** — one of `lockstep`, `independent`, or `none`, optionally
+  followed by a parenthetical naming the file(s) that hold the version, e.g.
+  `lockstep (package.json, agent-tools.yaml)`. `none` covers an artifact with
+  no version field anywhere — its changelog may legitimately stay
+  `## [Unreleased]` forever.
+- **Roadmap** — the repo-relative path to that artifact's own roadmap file,
+  normally `specs/artifacts/<artifact-name>/roadmap.md` for a genuinely
+  separate artifact — unlike `Changelog`, `roadmap.md` has no external
+  consumer (no npm page, no GitHub-browsing convention) that expects to
+  find it at the artifact's own code root, so it stays under `specs/`
+  instead of mixing a planning file into a code directory, while `specs/
+  artifacts/<name>/` keeps it in one recognizable, predictable place
+  without needing this table to find it. Optional; see the implicit
+  default below for what an empty cell or an absent column means.
+
+Directly under the table, an optional free-prose `Built from:` line records
+build fan-out — e.g. "the three `packages/*` artifacts are assembled from
+`core/` by `scripts/build.js`; a change under `core/` reaches all four
+artifacts." This is what lets a later mapping step know a change under one
+artifact's root also needs entries in the artifacts it feeds.
+
+**Implicit default:** when this subsection is absent from a project's
+`tech-stack.md`, the project has exactly one artifact — root `.`, changelog
+`CHANGELOG.md`, versioning unspecified. This is the common case, and it must
+require zero new ceremony: omit the subsection entirely for a single-artifact
+project rather than adding an empty or placeholder one.
+
+**Roadmap column default:** the same implicit-default pattern applies at the
+column level. An empty cell in the `Roadmap` column, or the column being
+absent from the table entirely, means that artifact's roadmap is the
+specs-root `roadmap.md` — never a missing value that needs to be chased down
+or filled in.
+
+This is not symmetric with `Changelog`. A project may specify `Changelog` per
+row even when versioning is shared — this repo's own table below does
+exactly that, giving every artifact its own changelog file even though all
+four release in lockstep. `Roadmap` is expected to be omitted far more often,
+because a project can independently choose to share one roadmap while still
+wanting separate changelogs, or vice versa. The two columns answer different
+questions — what ships to whom, versus what one team is planning — so
+collapsing one column says nothing about the other.
+
+**Example — lockstep npm packages** (this repo's own eventual shape: one
+version bump touches root plus every `packages/*` package, and all four
+share one roadmap, so the table below has no `Roadmap` column at all):
+
+| Artifact | Root | Changelog | Versioning |
+| --- | --- | --- | --- |
+| `@dpurge/agent-tools` | `.` | `CHANGELOG.md` | lockstep (`package.json`, `agent-tools.yaml`) |
+| `@dpurge/claude-agent-tools-plugin` | `packages/claude-agent-tools-plugin` | `packages/claude-agent-tools-plugin/CHANGELOG.md` | lockstep (`package.json`, `agent-tools.yaml`) |
+| `@dpurge/opencode-agent-tools-plugin` | `packages/opencode-agent-tools-plugin` | `packages/opencode-agent-tools-plugin/CHANGELOG.md` | lockstep (`package.json`, `agent-tools.yaml`) |
+| `@dpurge/pi-agent-tools-extension` | `packages/pi-agent-tools-extension` | `packages/pi-agent-tools-extension/CHANGELOG.md` | lockstep (`package.json`, `agent-tools.yaml`) |
+
+Built from: the three `packages/*` artifacts are assembled from `core/` by
+`scripts/build.js`; a change under `core/` reaches all four artifacts.
+
+**Example — no-version monorepo of independently-evolving apps** (a sibling
+project's shape: several apps, no per-app `package.json` or version field at
+all, each with its own roadmap too):
+
+| Artifact | Root | Changelog | Versioning | Roadmap |
+| --- | --- | --- | --- | --- |
+| `knowledge` | `knowledge/` | `knowledge/CHANGELOG.md` | none | `specs/artifacts/knowledge/roadmap.md` |
+| `phraseforge` | `phraseforge/` | `phraseforge/CHANGELOG.md` | none | `specs/artifacts/phraseforge/roadmap.md` |
+| `dictionary` | `dictionary/` | `dictionary/CHANGELOG.md` | none | `specs/artifacts/dictionary/roadmap.md` |
+
 ## File: specs/roadmap.md
 
 Fixed `##` sections, in order:
@@ -153,7 +237,7 @@ Both edits ride along B1's and B5's own approval gates; they don't bump
 ## Updating an existing (approved) file
 
 Never silently rewrite an approved file. Re-gather evidence for that file's
-scope only, then apply the `doc-review` skill's method to produce an
+scope only, then apply the `doc` skill's method to produce an
 evidence-linked account of what changed and why (drift found vs. code, or new
 direction from the user) before presenting it for approval. On approval,
 increment `version`, set `updated`, and keep `status: approved`.

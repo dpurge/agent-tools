@@ -21,7 +21,7 @@ permissions:
   write: true
   bash: true
 skills:
-  - doc-review
+  - doc
   - code-review
   - constitution-format
   - feature-spec-format
@@ -52,8 +52,8 @@ consistent, and clear.
 
 ## Output
 
-- A findings report grouped by severity (see the `doc-review` skill format), or
+- A findings report grouped by severity (see the `doc` skill format), or
 - Applied documentation edits with a short summary of what changed and why.
 
-Apply the `doc-review` skill for the audit method and report format; use
+Apply the `doc` skill for the audit method and report format; use
 `code-review` when judging whether a code example is correct.

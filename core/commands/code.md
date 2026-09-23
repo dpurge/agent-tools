@@ -171,7 +171,7 @@ here for **replanning**:
 1. Read the current file as-is — do not discard its content.
 2. Re-run [A2. Gather evidence](#a2-gather-evidence) for just that file's
    scope.
-3. Apply the `doc-review` skill's method to produce an evidence-linked
+3. Apply the `doc` skill's method to produce an evidence-linked
    account of what would change and why, and present it to the user (per the
    `constitution-format` skill's update rules).
 4. On approval: increment `version`, set `updated`, keep `status: approved`,
@@ -200,10 +200,12 @@ before starting B1 — don't guess.
 
 `<slug>` is a short kebab-case name derived from the title (e.g.
 `oauth-login`, `fix-cache-race`). If this feature already has a `Next` or
-`Later` line in `roadmap.md`, reuse that item's slug instead of deriving a
-new one, per the `constitution-format` skill's roadmap item-slug rule. If
-resuming existing work, read the existing file instead of starting a fresh
-one — its `status` says which phase to resume at.
+`Later` line in a roadmap file (the specs-root `roadmap.md`, or any
+per-artifact `Roadmap` file declared in `tech-stack.md`'s `### Artifacts`
+table), reuse that item's slug instead of deriving a new one, per the
+`constitution-format` skill's roadmap item-slug rule. If resuming existing
+work, read the existing file instead of starting a fresh one — its `status`
+says which phase to resume at.
 
 **Only `technical-writer` writes to this file**, at every phase — it
 transcribes what the read-only specialists (`researcher`, `architect`,
@@ -289,7 +291,13 @@ rule even between checkpoints — see there.
        branch's name, or the trunk's name if staying), add a
        `## Now` line to `roadmap.md`, and remove the matching `## Next`
        line for this feature if one exists, per the `constitution-format`
-       skill. Run `validate-specs`.
+       skill. Resolve which roadmap file(s) need this feature's `## Now`
+       line the same way B4 resolves changelog files for a feature (see
+       B4 step 1's mapping rule), applied to the `### Artifacts` table's
+       `Roadmap` column instead of `Changelog` — add the line to each
+       resolved file. When no `### Artifacts` table declares a `Roadmap`
+       column, this is exactly today's single `roadmap.md`, unchanged. Run
+       `validate-specs`.
    - `tester` runs the project's real test/build commands once, before
      touching anything — this is the baseline B3 compares against
      (regression vs. pre-existing failure).
@@ -343,13 +351,51 @@ rule even between checkpoints — see there.
 
 ### B4. Documentation review
 
-1. `technical-writer` applies the `doc-review` skill against the docs this
+1. `technical-writer` applies the `doc` skill against the docs this
    feature could have affected — README, `CHANGELOG.md`, other project docs,
    **and** the constitution files — looking for drift this change caused.
    For `CHANGELOG.md`, drift also means a missing entry: any user-facing
    change (behavior, CLI surface, config, public API) needs one under
    `## [Unreleased]`; a purely internal change (refactor, test-only,
    docs-only) does not.
+
+   A project may have more than one changelog. Resolve, for each *Affected
+   Areas* path, which changelog(s) it needs an entry in before applying the
+   filter above (this same resolution — substituting the `Roadmap` column
+   for `Changelog` — is also used by B2/B5 to route `## Now` lines):
+
+   - Build the artifact list from `tech-stack.md`'s `### Artifacts`
+     subsection (per `constitution-format`) if present; otherwise treat the
+     project as having exactly one implicit artifact — root `.`,
+     `CHANGELOG.md`. This reproduces today's exact behavior when the
+     subsection is absent, so single-artifact projects (the common case) see
+     zero change here.
+   - For each path, find the artifact whose `Root` is its longest prefix,
+     matched on path-segment boundaries only, never a raw string prefix:
+     `packages/pi` must never match `packages/pi-agent-tools-extension` as a
+     prefix (they diverge at the third character after the shared
+     `packages/pi` — treat `Root` values as complete path segments, so
+     `packages/pi-agent-tools-extension` only matches paths under that exact
+     directory). Root `.` is a prefix of everything and wins only when no
+     deeper root matches.
+   - If the Artifacts table has a `Built from:` note describing build
+     fan-out, also include the downstream artifact(s) it names: a change
+     under `core/skills/` produces Affected Areas containing only
+     `core/...` paths, but this repo's own `Built from:` note says
+     `scripts/build.js` ships `core/` content into all three `packages/*`
+     artifacts, so all four changelogs need an entry, not just the root one.
+   - Apply the user-facing-vs-internal filter above once **per candidate
+     artifact**, not once globally — an internal change to one artifact's
+     own internals still gets zero entries there even when the same change
+     also maps to a second artifact via fan-out.
+   - A path matching no declared artifact is its own finding —
+     "`<path>` matches no declared artifact; the Artifacts table may be
+     stale" — rather than being silently dropped or silently sent to the
+     root artifact.
+   - Record the result in *Documentation Review* as a list of
+     `{changelog path, category, proposed entry text}` per affected
+     artifact — this is exactly what B5 consumes, without re-deriving
+     anything.
 2. If drift touches a constitution file, that's replanning too: run
    [Updating an approved file](#updating-an-approved-file) for it, gated by
    the human like any other constitution change.
@@ -360,19 +406,21 @@ rule even between checkpoints — see there.
 
 1. `technical-writer` applies the approved documentation changes (README,
    other docs; constitution changes are already handled by their own gate
-   in B4). If B4 flagged a missing `CHANGELOG.md` entry, add one now: under
-   `## [Unreleased]`, in the matching
-   [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) category
-   (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, or `Security`), one
-   line, user-facing, sourced from *Acceptance Criteria*/*Implementation
-   Notes* — never invented. If the project has no `CHANGELOG.md` yet, create
-   it at the project root with the standard Keep a Changelog header and an
-   empty `## [Unreleased]` before adding the entry. In the same edit, remove
-   this feature's `## Now` line from `roadmap.md` (per the
-   `constitution-format` skill — it's no longer current, it's in the
-   changelog) and run `validate-specs`. Record what changed, where, in
-   *Documentation Updates* — for a constitution change, point to it rather
-   than duplicating it here.
+   in B4). For each `{changelog path, category, entry}` B4 resolved, write
+   the entry into that exact file's own `## [Unreleased]`, under the
+   matching [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+   category (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, or
+   `Security`), one line, user-facing, sourced from *Acceptance
+   Criteria*/*Implementation Notes* — never invented, and never re-derive
+   the mapping B4 already produced. If a target changelog file doesn't
+   exist yet, create it at that artifact's own root (not necessarily the
+   project root) with the standard Keep a Changelog header and an empty
+   `## [Unreleased]` before adding the entry. In the same edit, remove this
+   feature's `## Now` line from each roadmap file it was added to in B2
+   (resolved the same way), per the `constitution-format` skill — it's no
+   longer current, it's in the changelog — and run `validate-specs`. Record
+   what changed, where, in *Documentation Updates* — for a constitution
+   change, point to it rather than duplicating it here.
 2. If anything durable and reusable surfaced during this feature that
    didn't already get appended in B2 (e.g. a documentation-review finding
    worth remembering), `technical-writer` appends it to `memory.md` now,

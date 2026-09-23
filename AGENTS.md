@@ -25,7 +25,7 @@ assets are packaged for:
 3. **`packages/*` are generated build outputs**
    - Do not manually edit generated bundled assets there.
    - The only normal hand-edited files in packages are entrypoints/tests such as
-     `package.json`, `index.js`, and `*.test.js`.
+     `package.json`, `index.js`, `*.test.js`, and `CHANGELOG.md`.
 4. **Build/install behavior should stay shared**
    - Reuse `scripts/lib/install-common.js` when possible.
    - Avoid duplicating path/manifest logic in multiple scripts.

@@ -24,7 +24,7 @@ skills:
   - architecture-review
   - code-review
   - security-review
-  - doc-review
+  - doc
   - constitution-format
   - feature-spec-format
   - memory-format
@@ -93,9 +93,9 @@ agents:
 
 workflows:
   - code
-  - bug-investigation
+  - bug
   - release
-  - doc-review
+  - doc
   - research
   - anki
   - ebook
@@ -103,9 +103,9 @@ workflows:
 
 commands:
   - code
-  - bug-investigation
+  - bug
   - release
-  - doc-review
+  - doc
   - research
   - anki
   - ebook

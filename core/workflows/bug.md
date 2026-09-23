@@ -1,5 +1,5 @@
 ---
-name: bug-investigation
+name: bug
 description: Systematic workflow for investigating, diagnosing, and resolving software defects.
 version: 1.0.0
 agents:
@@ -14,9 +14,9 @@ skills:
 
 # Bug Investigation Workflow
 
-This workflow is runnable as the `/bug-investigation` slash command. The
+This workflow is runnable as the `/bug` slash command. The
 authoritative, step-by-step instructions live in
-[`core/commands/bug-investigation.md`](../commands/bug-investigation.md) so there
+[`core/commands/bug.md`](../commands/bug.md) so there
 is a single source of truth.
 
 ## When to use

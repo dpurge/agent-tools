@@ -14,7 +14,7 @@ skills:
   - constitution-format
   - feature-spec-format
   - memory-format
-  - doc-review
+  - doc
   - code-review
   - architecture-review
   - security-review
@@ -83,7 +83,7 @@ truth.
    before anything is written with `status: approved`.
 5. **Write** — only approved files are written.
 6. **Update path** — an approved file can later be revisited: re-gather
-   evidence for that file only, apply the `doc-review` skill to produce an
+   evidence for that file only, apply the `doc` skill to produce an
    evidence-linked change narrative, and only write on approval. Also the
    landing point for **replanning** triggered from Part B.
 
@@ -99,7 +99,9 @@ runs after every write, in every phase.
    ambiguous in a way that would change the outcome, ask before proceeding;
    then decide whether this needs the constitution updated, a feature spec
    created/updated, or both, and route accordingly.
-1. **Feature specification** — `researcher` gathers context, notes
+1. **Feature specification** — the feature's slug reuses an existing
+   `Next`/`Later` item's slug from any declared roadmap file, not just the
+   specs-root one, when present; `researcher` gathers context, notes
    unknowns, and greps `memory.md` for relevant entries; ask up to ~5
    priority-ordered questions to resolve ambiguity before designing;
    `architect` sketches the approach (ordered plan, trade-offs,
@@ -110,7 +112,9 @@ runs after every write, in every phase.
    **HITL** — human approves before implementation starts.
 2. **Feature implementation** — establish a clean baseline first (`git
    status`/`git branch`, and `tester` runs the real suite once before any
-   change — never discard uncommitted work found here); `engineer` greps
+   change — never discard uncommitted work found here), adding this
+   feature's `## Now` line to each roadmap file resolved the same
+   longest-prefix way phase 4 maps changelogs; `engineer` greps
    `memory.md` for relevant `[build]`/`[gotcha]` entries, then implements
    per the approved approach in small, narrated steps (not one silent
    pass), following project conventions; writes tests covering the
@@ -122,18 +126,26 @@ runs after every write, in every phase.
    tests) and reports pass/fail/regressions, checking `memory.md` for known
    causes on failure; `reviewer` is invoked when the change warrants a
    second pair of eyes, not on every change.
-4. **Documentation review** — `technical-writer` applies `doc-review`
+4. **Documentation review** — `technical-writer` applies `doc`
    against affected docs and the constitution files; drift in a constitution
-   file is replanning too.
-5. **Documentation update** — approved doc changes are applied; constitution
-   changes are already handled by their own gate; any remaining durable
-   learning is appended to `memory.md`. `coordinator` checks `memory.md`'s
-   entry count (via `Grep` count, since it has no `Bash`) and dispatches
-   `technical-writer` to purge/consolidate past 200 entries — autonomous,
-   reported to the human, not gated. A commit message (and PR description,
-   if applicable) is drafted for human review. **HITL** — human approves
-   final delivery, and separately, before anything is actually committed or
-   opened.
+   file is replanning too. For `CHANGELOG.md`, `technical-writer` first maps
+   each *Affected Areas* path to its owning changelog(s) via `tech-stack.md`'s
+   optional `### Artifacts` table (longest-prefix, segment-aware, plus any
+   `Built from:` fan-out — a single implicit root artifact when the table is
+   absent), flags unmatched paths as their own finding, and records a
+   `{changelog path, category, entry}` list per artifact for B5 to consume.
+5. **Documentation update** — approved doc changes are applied, each
+   changelog entry written into the specific file B4 named (creating it at
+   that artifact's own root if missing), and this feature's `## Now` line
+   removed from each roadmap file it was added to in phase 2 (resolved the
+   same way); constitution changes are already handled by their own gate;
+   any remaining durable learning is appended to `memory.md`. `coordinator`
+   checks `memory.md`'s entry count (via `Grep` count, since it has no
+   `Bash`) and dispatches `technical-writer` to purge/consolidate past 200
+   entries — autonomous, reported to the human, not gated. A commit message
+   (and PR description, if applicable) is drafted for human review.
+   **HITL** — human approves final delivery, and separately, before
+   anything is actually committed or opened.
 
 ## Roles
 

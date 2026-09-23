@@ -35,7 +35,8 @@
     "rules",
     "mcp",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
 
   "main": "./index.js",

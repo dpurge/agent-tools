@@ -47,6 +47,13 @@ jobs:
           echo "version=$NEW" >> "$GITHUB_OUTPUT"
           echo "Releasing v$NEW"
 
+      - name: Update changelogs
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -e
+          node scripts/release-changelog.js "$VERSION"
+
       - name: Validate, build & test
         run: |
           npm run validate

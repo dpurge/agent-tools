@@ -1,5 +1,5 @@
 ---
-name: doc-review
+name: doc
 description: Audit project documentation against the current code for consistency, readability, and correctness, and produce an evidence-linked findings report.
 version: 1.0.0
 ---
@@ -24,6 +24,44 @@ markdown in the repository.
 - Package names, versions, and install instructions.
 - Code snippets and examples that would not run.
 - API/behavior descriptions that contradict the implementation.
+
+**Release wiring (high priority)** — a missing changelog-before-tag step means a
+published release silently omits its own changelog entry.
+
+- Scope: `.github/workflows/*.yml`/`*.yaml` only. If no `.github/workflows/`
+  exists but another CI config does (`.gitlab-ci.yml`, `Jenkinsfile`, etc.),
+  note it as not inspected — do not build vendor-specific parsers.
+- Tag creation: a step containing `git tag`, `git push --tags`,
+  `gh release create`, or a known tagging action (`softprops/action-gh-release`,
+  `actions/create-release`, `changesets/action`).
+- Changelog-rewrite coverage: a step *before* the tag step invoking a known
+  tool (`changesets`, `release-please`, `standard-version`, `changelogen`,
+  `git-cliff`, `auto-changelog`) or a repo script — verify by reading the
+  script, not by its name, that it moves `## [Unreleased]` into a versioned
+  section.
+- Multi-artifact: if `tech-stack.md` declares an `### Artifacts` table, check
+  coverage per declared artifact, not once for the repo — a lockstep release
+  that versions only the root changelog is a separate finding per skipped
+  package changelog.
+- Not a finding: no curated changelog exists (no `CHANGELOG.md` with a
+  `## [Unreleased]` heading) — nothing to move; or the artifact's
+  `Versioning` is `none` and nothing tags it.
+- A finding requires all of: the workflow creates a tag, AND at least one
+  declared (or implicit single) artifact's changelog has a non-empty
+  `## [Unreleased]` body, AND no step before the tag step rewrites it.
+  Severity **High** — a published release's changelog silently omits that
+  release; a tool's auto-generated notes (e.g.
+  `gh release create --generate-notes`) are not a substitute for the
+  curated file.
+- Ordering counts: a rewrite step that exists but runs *after* the tag step
+  is still a finding — report it as ordering, not "missing."
+- Never auto-edit a workflow file — report a concrete suggested fix (e.g.
+  "insert an Unreleased-to-versioned step before the tag step, running
+  `<script>`"); the fix goes through this project's normal
+  approval-gated path like any other change.
+- Quote step names/paths as evidence, never inline secret expressions (e.g.
+  `${{ secrets.NPM_TOKEN }}`) — mask per the security rule if a quoted line
+  contains one.
 
 **Consistency** — does the documentation agree with itself?
 

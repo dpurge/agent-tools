@@ -6,7 +6,7 @@ argument-hint: <optional path or glob to limit scope; defaults to the whole repo
 # Documentation Review
 
 Audit the project's documentation against the code as it is **now**, report what
-has drifted, and fix it only after approval. Use the `doc-review` skill for the
+has drifted, and fix it only after approval. Use the `doc` skill for the
 method and report format.
 
 **Scope:** $ARGUMENTS
@@ -26,7 +26,7 @@ List the files you will review.
 
 ## 2. Audit against the code
 
-Use the `technical-writer` agent with the `doc-review` skill. For each
+Use the `technical-writer` agent with the `doc` skill. For each
 documentation claim about the code, verify it against the actual code
 (`Grep`/`Glob`/`Read`) — do not assume. Look for:
 
@@ -39,7 +39,7 @@ documentation claim about the code, verify it against the actual code
 
 ## 3. Present the report
 
-Produce the report exactly in the `doc-review` skill format: a summary line, then
+Produce the report exactly in the `doc` skill format: a summary line, then
 findings grouped **High → Medium → Low**, each with:
 
 - `path/to/file.md:LINE` — the problem in one line

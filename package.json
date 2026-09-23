@@ -31,7 +31,8 @@
     "scripts",
     "agent-tools.yaml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "validate": "node scripts/validate.js",

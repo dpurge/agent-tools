@@ -1,7 +1,7 @@
 ---
-version: 3
+version: 4
 status: approved
-updated: 2026-09-16
+updated: 2026-09-23
 ---
 
 # Tech Stack
@@ -40,6 +40,20 @@ updated: 2026-09-16
   `.github/workflows/release.yml` is a manual `workflow_dispatch` that
   bumps the version, builds, tests, packs every package, tags, and
   publishes a GitHub Release.
+
+### Artifacts
+
+| Artifact | Root | Changelog | Versioning |
+| --- | --- | --- | --- |
+| `@dpurge/agent-tools` | `.` | `CHANGELOG.md` | lockstep (`package.json`, `agent-tools.yaml`) |
+| `@dpurge/claude-agent-tools-plugin` | `packages/claude-agent-tools-plugin` | `packages/claude-agent-tools-plugin/CHANGELOG.md` | lockstep (`package.json`) |
+| `@dpurge/opencode-agent-tools-plugin` | `packages/opencode-agent-tools-plugin` | `packages/opencode-agent-tools-plugin/CHANGELOG.md` | lockstep (`package.json`) |
+| `@dpurge/pi-agent-tools-extension` | `packages/pi-agent-tools-extension` | `packages/pi-agent-tools-extension/CHANGELOG.md` | lockstep (`package.json`) |
+
+Built from: the three `packages/*` artifacts are assembled from `core/` (via
+`scripts/build.js`); a user-facing change under `core/` reaches all four
+artifacts, since `scripts/build.js` copies manifest-listed skills/agents/
+workflows/commands into every package.
 
 ## Key conventions
 

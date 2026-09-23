@@ -1,19 +1,19 @@
 ---
-name: doc-review
+name: doc
 description: Audit all project documentation against the current code, report discrepancies with evidence, and fix them after human approval.
 version: 1.0.0
 agents:
   - technical-writer
 skills:
-  - doc-review
+  - doc
   - code-review
 ---
 
 # Documentation Review Workflow
 
-This workflow is runnable as the `/doc-review` slash command. The authoritative,
+This workflow is runnable as the `/doc` slash command. The authoritative,
 step-by-step instructions live in
-[`core/commands/doc-review.md`](../commands/doc-review.md).
+[`core/commands/doc.md`](../commands/doc.md).
 
 ## When to use
 
@@ -27,7 +27,7 @@ step-by-step instructions live in
    and other markdown), excluding `node_modules/`, git-ignored build output, and
    generated content inside `packages/*`.
 2. **Audit** — verify each claim against the current code with evidence
-   (`doc-review`, `code-review` skills).
+   (`doc`, `code-review` skills).
 3. **Report** — present findings grouped by severity, each with `path:line`
    evidence, why it's a problem, and a suggested fix.
 4. **Approval gate** — propose the fixes; the human decides which to apply.

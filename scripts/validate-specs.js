@@ -179,6 +179,24 @@ function checkVersionAndDate(label, attributes) {
   }
 }
 
+/**
+ * Shared schema check for every file that follows the constitution format
+ * (frontmatter `version`/`status`/`updated` plus a fixed, ordered `##`
+ * section list). Used both for the specs-root mission/tech-stack/roadmap
+ * files and for every extra per-artifact roadmap file discovered via the
+ * `### Artifacts` table, so the two call sites never drift into two copies
+ * of the same checks.
+ */
+function checkConstitutionSchema(label, attributes, body, sectionsKey) {
+  checkVersionAndDate(label, attributes);
+  if (!CONSTITUTION_STATUSES.has(attributes.status)) {
+    error(
+      `${label}: frontmatter 'status' must be one of ${[...CONSTITUTION_STATUSES].join("/")} (got ${JSON.stringify(attributes.status)})`
+    );
+  }
+  checkSections(label, body, CONSTITUTION_SECTIONS[sectionsKey]);
+}
+
 async function readFrontmatter(label, file) {
   const raw = await fs.readFile(file, "utf8");
   try {
@@ -201,17 +219,177 @@ async function validateConstitutionFile(specsDir, name, labelPrefix) {
     return;
   }
 
-  const attributes = parsed.attributes;
   const before = errors.length;
-  checkVersionAndDate(label, attributes);
-  if (!CONSTITUTION_STATUSES.has(attributes.status)) {
-    error(
-      `${label}: frontmatter 'status' must be one of ${[...CONSTITUTION_STATUSES].join("/")} (got ${JSON.stringify(attributes.status)})`
-    );
-  }
-  checkSections(label, parsed.body, CONSTITUTION_SECTIONS[name]);
+  checkConstitutionSchema(label, parsed.attributes, parsed.body, name);
   if (errors.length === before) {
     ok(`${label} matches the constitution format`);
+  }
+}
+
+// Maps a `### Artifacts` table header cell (exact, trimmed name) to the key
+// used on each parsed row object. Column order in the table doesn't matter;
+// only the header names do. See the `constitution-format` skill's
+// `### Artifacts` subsection for the full column semantics.
+const ARTIFACTS_TABLE_COLUMNS = {
+  Artifact: "artifact",
+  Root: "root",
+  Changelog: "changelog",
+  Versioning: "versioning",
+  Roadmap: "roadmap",
+};
+
+/** Splits one `| a | b |`-style markdown table row into trimmed cells. */
+function splitTableRow(line) {
+  const withoutEdgePipes = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return withoutEdgePipes.split("|").map(cell => cell.trim());
+}
+
+/**
+ * Parses the markdown table directly under a `### Artifacts` heading inside
+ * `tech-stack.md`'s body (see the `constitution-format` skill). Returns:
+ *
+ * - `null` if no `### Artifacts` heading exists — nothing declared, the
+ *   implicit single-artifact default applies.
+ * - `null` if the heading exists but no valid table follows it — an error
+ *   is recorded via `error()` first, so this is never a silent no-op.
+ * - otherwise, an array of row objects with only the keys for columns
+ *   actually present in the table (e.g. `{ artifact, root, roadmap }` if
+ *   the table has no `Changelog`/`Versioning` columns).
+ */
+function parseArtifactsTable(body) {
+  const headingMatch = /^###\s+Artifacts\s*$/m.exec(body);
+  if (!headingMatch) {
+    return null;
+  }
+
+  const lines = body.slice(headingMatch.index + headingMatch[0].length).split(/\r?\n/);
+
+  let i = 0;
+  while (i < lines.length && lines[i].trim() === "") {
+    i++;
+  }
+
+  const headerLine = lines[i];
+  const separatorLine = lines[i + 1];
+  if (!headerLine?.trim().startsWith("|") || !separatorLine?.trim().startsWith("|")) {
+    error("tech-stack.md: '### Artifacts' heading found but no markdown table follows it");
+    return null;
+  }
+
+  const headerCells = splitTableRow(headerLine);
+  const columnIndex = {};
+  headerCells.forEach((name, idx) => {
+    const key = ARTIFACTS_TABLE_COLUMNS[name];
+    if (key) {
+      columnIndex[key] = idx;
+    }
+  });
+
+  const rows = [];
+  let lineNo = i + 2;
+  while (lineNo < lines.length && lines[lineNo].trim().startsWith("|")) {
+    const cells = splitTableRow(lines[lineNo]);
+    if (cells.length !== headerCells.length) {
+      error(
+        `tech-stack.md: '### Artifacts' table row ${JSON.stringify(lines[lineNo].trim())} has ${cells.length} cell(s), expected ${headerCells.length}`
+      );
+      return null;
+    }
+    const row = {};
+    for (const [key, idx] of Object.entries(columnIndex)) {
+      row[key] = cells[idx];
+    }
+    rows.push(row);
+    lineNo++;
+  }
+
+  return rows;
+}
+
+/**
+ * Collects the distinct repo-relative `Roadmap` paths declared across the
+ * `### Artifacts` table's rows, deduplicated against each other and against
+ * the specs-root `roadmap.md`'s own repo-relative-to-`projectRoot` path (so
+ * a row that just points back at the shared roadmap is never re-validated
+ * as if it were an extra file).
+ */
+function discoverExtraRoadmapPaths(rows, specsDir, projectRoot) {
+  const specsRootRoadmapPath = path.relative(projectRoot, path.join(specsDir, "roadmap.md"));
+  const seen = new Set([specsRootRoadmapPath]);
+  const discovered = [];
+
+  for (const row of rows) {
+    if (!("roadmap" in row)) {
+      continue;
+    }
+    const cleaned = row.roadmap.trim().replace(/^`+|`+$/g, "").trim();
+    if (!cleaned || seen.has(cleaned)) {
+      continue;
+    }
+    seen.add(cleaned);
+    discovered.push(cleaned);
+  }
+
+  return discovered;
+}
+
+/**
+ * Validates one extra roadmap file discovered via the `### Artifacts`
+ * table, against the exact same schema as the specs-root `roadmap.md`
+ * (see `checkConstitutionSchema`). Labeled by its own repo-relative path
+ * rather than a `labelPrefix`, since these files live outside `specs/`.
+ */
+async function validateExtraRoadmapFile(projectRoot, relPath) {
+  const file = path.join(projectRoot, relPath);
+  const label = relPath;
+
+  if (!(await exists(file))) {
+    error(`${label}: roadmap file declared in tech-stack.md's '### Artifacts' table does not exist`);
+    return;
+  }
+
+  const parsed = await readFrontmatter(label, file);
+  if (!parsed) {
+    return;
+  }
+
+  const before = errors.length;
+  checkConstitutionSchema(label, parsed.attributes, parsed.body, "roadmap.md");
+  if (errors.length === before) {
+    ok(`${label} matches the roadmap format`);
+  }
+}
+
+/**
+ * Discovers and validates every extra per-artifact roadmap file declared in
+ * `tech-stack.md`'s `### Artifacts` table (see the `constitution-format`
+ * skill and the `multi-artifact-roadmaps` feature spec). A no-op when
+ * `tech-stack.md` doesn't exist, has no `### Artifacts` heading, or has one
+ * with no `Roadmap` column — the common case, zero behavior change.
+ */
+async function validateDeclaredRoadmaps(specsDir, projectRoot) {
+  const techStackFile = path.join(specsDir, "tech-stack.md");
+  if (!(await exists(techStackFile))) {
+    return;
+  }
+
+  const raw = await fs.readFile(techStackFile, "utf8");
+  let body;
+  try {
+    body = matter(raw).body;
+  } catch {
+    // Already reported by validateConstitutionFile's own frontmatter read
+    // for this same file — avoid a duplicate error for the same problem.
+    return;
+  }
+
+  const rows = parseArtifactsTable(body);
+  if (!rows) {
+    return;
+  }
+
+  for (const relPath of discoverExtraRoadmapPaths(rows, specsDir, projectRoot)) {
+    await validateExtraRoadmapFile(projectRoot, relPath);
   }
 }
 
@@ -351,9 +529,16 @@ async function validateMemoryFile(specsDir, labelPrefix) {
  * Validate one specs directory directly — either a project's `specs/` or a
  * shadow `.agent/specs/` (see the `agent-workspace` rule). `labelPrefix` is
  * purely cosmetic, prepended to messages so output reads naturally
- * regardless of which one is being checked.
+ * regardless of which one is being checked. `projectRoot` is where
+ * repo-relative paths declared in `tech-stack.md`'s `### Artifacts` table
+ * (e.g. extra `Roadmap` files) are resolved against — it is *not* always
+ * `path.dirname(specsDir)`: that's only true for a normal `specs/` root,
+ * not for a shadow `.agent/specs/` root, whose project root is two
+ * directories up. The default here only covers the normal case; callers
+ * that might see a shadow root (like `main()`) must compute and pass it
+ * explicitly.
  */
-export async function validateSpecsDir(specsDir, labelPrefix = "specs/") {
+export async function validateSpecsDir(specsDir, labelPrefix = "specs/", projectRoot = path.dirname(specsDir)) {
   errors = [];
   warnings = [];
 
@@ -364,6 +549,8 @@ export async function validateSpecsDir(specsDir, labelPrefix = "specs/") {
   for (const name of Object.keys(CONSTITUTION_SECTIONS)) {
     await validateConstitutionFile(specsDir, name, labelPrefix);
   }
+
+  await validateDeclaredRoadmaps(specsDir, projectRoot);
 
   await validateMemoryFile(specsDir, labelPrefix);
 
@@ -385,7 +572,7 @@ export async function validateSpecsDir(specsDir, labelPrefix = "specs/") {
 /** Convenience wrapper: validate `<targetDir>/specs`. */
 export async function validateSpecs(targetDir) {
   const specsDir = path.join(targetDir, "specs");
-  const result = await validateSpecsDir(specsDir, "specs/");
+  const result = await validateSpecsDir(specsDir, "specs/", targetDir);
   if (!result.exists) {
     console.log("No specs/ directory yet — nothing to validate.");
   }
@@ -401,13 +588,18 @@ function parseValidateSpecsArgs() {
 
 async function main() {
   const specsDir = parseValidateSpecsArgs();
-  const labelPrefix = path.basename(path.dirname(specsDir)) === ".agent" ? ".agent/specs/" : "specs/";
+  const isShadowRoot = path.basename(path.dirname(specsDir)) === ".agent";
+  const labelPrefix = isShadowRoot ? ".agent/specs/" : "specs/";
+  // A shadow `.agent/specs/` root's project root is two directories up
+  // (past both `specs` and `.agent`); a normal `specs/` root's is one.
+  const projectRoot = isShadowRoot ? path.dirname(path.dirname(specsDir)) : path.dirname(specsDir);
 
   console.log(`\nValidating specs at ${specsDir}...\n`);
 
   const { errors: foundErrors, warnings: foundWarnings, exists: dirExists } = await validateSpecsDir(
     specsDir,
-    labelPrefix
+    labelPrefix,
+    projectRoot
   );
 
   if (!dirExists) {

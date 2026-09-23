@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { validateSpecs } from "./validate-specs.js";
+import { validateSpecs, validateSpecsDir } from "./validate-specs.js";
 
 async function mktemp() {
   return fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-validate-specs-"));
@@ -163,6 +163,240 @@ test("warns but does not error when specs/ exists without a features/ directory"
   const { errors, warnings } = await validateSpecs(dir);
   assert.deepEqual(errors, []);
   assert.ok(warnings.some(w => w.includes("features/")));
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+const VALID_ROADMAP = `---
+version: 1
+status: approved
+updated: 2026-09-16
+---
+
+# Roadmap
+
+## Now
+n
+
+## Next
+x
+
+## Later
+l
+
+## Out of scope
+o
+`;
+
+// A roadmap missing its final '## Out of scope' section — used to exercise
+// the "declared path exists but fails the schema" and "validated exactly
+// once, not twice" cases without needing a second distinct failure shape.
+const ROADMAP_MISSING_OUT_OF_SCOPE = VALID_ROADMAP.replace("## Out of scope\no\n", "");
+
+/**
+ * Builds a full tech-stack.md, with `artifactsBlock` (expected to start with
+ * '### Artifacts') spliced into '## Infrastructure & tooling', matching
+ * where the constitution-format skill nests the Artifacts subsection.
+ */
+function techStackWithArtifacts(artifactsBlock) {
+  return `---
+version: 1
+status: approved
+updated: 2026-09-16
+---
+
+# Tech Stack
+
+## Languages & runtimes
+l
+
+## Frameworks & libraries
+f
+
+## Infrastructure & tooling
+i
+
+${artifactsBlock}
+
+## Key conventions
+k
+`;
+}
+
+async function writeTechStack(dir, content) {
+  await fs.mkdir(path.join(dir, "specs"), { recursive: true });
+  await fs.writeFile(path.join(dir, "specs", "tech-stack.md"), content);
+}
+
+async function writeRoadmapAt(dir, relPath, content) {
+  const file = path.join(dir, relPath);
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, content);
+}
+
+test("discovers and validates 2+ distinct declared Roadmap paths", async () => {
+  const dir = await mktemp();
+  await writeTechStack(
+    dir,
+    techStackWithArtifacts(`### Artifacts
+
+| Artifact | Root | Roadmap |
+| --- | --- | --- |
+| App A | app-a | app-a/roadmap.md |
+| App B | app-b | app-b/roadmap.md |`)
+  );
+  await writeRoadmapAt(dir, "app-a/roadmap.md", VALID_ROADMAP);
+  await writeRoadmapAt(dir, "app-b/roadmap.md", VALID_ROADMAP);
+
+  const { errors } = await validateSpecs(dir);
+  assert.deepEqual(errors, []);
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("errors on a declared Roadmap path that doesn't exist on disk", async () => {
+  const dir = await mktemp();
+  await writeTechStack(
+    dir,
+    techStackWithArtifacts(`### Artifacts
+
+| Artifact | Root | Roadmap |
+| --- | --- | --- |
+| App A | app-a | app-a/roadmap.md |`)
+  );
+
+  const { errors } = await validateSpecs(dir);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /^app-a\/roadmap\.md:/);
+  assert.match(errors[0], /does not exist/);
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("errors on a declared Roadmap path that exists but has the wrong sections", async () => {
+  const dir = await mktemp();
+  await writeTechStack(
+    dir,
+    techStackWithArtifacts(`### Artifacts
+
+| Artifact | Root | Roadmap |
+| --- | --- | --- |
+| App A | app-a | app-a/roadmap.md |`)
+  );
+  await writeRoadmapAt(dir, "app-a/roadmap.md", ROADMAP_MISSING_OUT_OF_SCOPE);
+
+  const { errors } = await validateSpecs(dir);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /^app-a\/roadmap\.md:/);
+  assert.match(errors[0], /sections must be exactly/);
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("validates a Roadmap value shared by two rows exactly once, not twice", async () => {
+  const dir = await mktemp();
+  await writeTechStack(
+    dir,
+    techStackWithArtifacts(`### Artifacts
+
+| Artifact | Root | Roadmap |
+| --- | --- | --- |
+| App A | app-a | app-a/roadmap.md |
+| App A Mirror | app-a-mirror | app-a/roadmap.md |`)
+  );
+  // Deliberately invalid, so a duplicate-validation bug would show up as two
+  // matching error lines instead of one.
+  await writeRoadmapAt(dir, "app-a/roadmap.md", ROADMAP_MISSING_OUT_OF_SCOPE);
+
+  const { errors } = await validateSpecs(dir);
+  const matching = errors.filter(e => e.includes("app-a/roadmap.md"));
+  assert.equal(matching.length, 1);
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("sees zero behavior change for an Artifacts table with no Roadmap column", async () => {
+  const dir = await mktemp();
+  // Mirrors this repo's own real '### Artifacts' table shape (specs/tech-stack.md):
+  // Artifact/Root/Changelog/Versioning, no Roadmap column at all.
+  await writeTechStack(
+    dir,
+    techStackWithArtifacts(`### Artifacts
+
+| Artifact | Root | Changelog | Versioning |
+| --- | --- | --- | --- |
+| agent-tools | . | CHANGELOG.md | lockstep (package.json) |
+| claude-agent-tools-plugin | packages/claude-agent-tools-plugin | packages/claude-agent-tools-plugin/CHANGELOG.md | lockstep (package.json) |
+
+Built from: the packages/* artifacts are assembled from core/ by scripts/build.js.`)
+  );
+
+  const { errors } = await validateSpecs(dir);
+  assert.deepEqual(errors, []);
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("errors on a malformed Artifacts table with a mismatched row cell count", async () => {
+  const dir = await mktemp();
+  await writeTechStack(
+    dir,
+    techStackWithArtifacts(`### Artifacts
+
+| Artifact | Root | Roadmap |
+| --- | --- | --- |
+| App A | app-a |`)
+  );
+
+  const { errors } = await validateSpecs(dir);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /tech-stack\.md/);
+  assert.match(errors[0], /has 2 cell\(s\), expected 3/);
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("errors on an Artifacts heading with no table following it", async () => {
+  const dir = await mktemp();
+  await writeTechStack(
+    dir,
+    techStackWithArtifacts(`### Artifacts
+
+No table follows this heading, just prose.`)
+  );
+
+  const { errors } = await validateSpecs(dir);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /tech-stack\.md/);
+  assert.match(errors[0], /no markdown table follows it/);
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("resolves a declared Roadmap path against the true project root for a shadow .agent/specs root", async () => {
+  const dir = await mktemp();
+  const specsDir = path.join(dir, ".agent", "specs");
+  await fs.mkdir(specsDir, { recursive: true });
+  await fs.writeFile(
+    path.join(specsDir, "tech-stack.md"),
+    techStackWithArtifacts(`### Artifacts
+
+| Artifact | Root | Roadmap |
+| --- | --- | --- |
+| App A | app-a | app-a/roadmap.md |`)
+  );
+  // app-a/roadmap.md is relative to the project root (dir), not to .agent/ —
+  // if projectRoot were computed one directory short, this file would not
+  // be found at dir/.agent/app-a/roadmap.md.
+  await writeRoadmapAt(dir, "app-a/roadmap.md", VALID_ROADMAP);
+
+  // Mirrors main()'s own shadow-root detection in validate-specs.js.
+  const isShadowRoot = path.basename(path.dirname(specsDir)) === ".agent";
+  const projectRoot = isShadowRoot ? path.dirname(path.dirname(specsDir)) : path.dirname(specsDir);
+  assert.equal(projectRoot, dir);
+
+  const { errors } = await validateSpecsDir(specsDir, ".agent/specs/", projectRoot);
+  assert.deepEqual(errors, []);
 
   await fs.rm(dir, { recursive: true, force: true });
 });

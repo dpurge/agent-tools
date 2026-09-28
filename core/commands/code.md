@@ -63,6 +63,29 @@ These apply throughout, both parts:
   don't just describe the change, show the actual proposed text. **Never**
   add model or tool attribution anywhere: not in commits, PR descriptions,
   code comments, or docs.
+- **Spikes are minimal, isolated, and self-bounding — never monitored into
+  safety.** A feasibility check for an unproven mechanism (an external CLI, a
+  new provider, a subprocess) tests exactly that one unknown, stripped of any
+  realistic task content, under a hard timeout the calling tool itself
+  enforces — never the subprocess's own promise to behave — set to what the
+  mechanism should cost *if it works at all* (seconds for an API call, well
+  under a minute for a CLI call). Never "a few minutes to be safe."
+- **Never launch a subagent or background task of unknown duration without
+  either bounding it yourself first or asking.** If the work can be shrunk to
+  a proven-quick isolated spike, do that. If it's genuinely variable-duration
+  by nature and can't be shrunk (a real multi-step task, a build), say so
+  *before* launching it — what's running, why it might take a while, why the
+  result is worth the wait — and get a go-ahead, or at minimum state it
+  plainly.
+- **Check in only when there is new information: a finding, a decision
+  point, or a completed deliverable.** Never a bare status ping. A spike that
+  hits its bound has already produced its finding ("this doesn't work
+  quickly enough, here's why") — report that once; it is not a prelude to
+  trying again silently.
+- **A human having to kill a stuck process is not a bug to route around
+  afterward — it is exactly the outcome the two rules above exist to
+  prevent.** Getting to that point is already a process failure, whether or
+  not the thing would have eventually succeeded.
 
 ---
 
@@ -235,7 +258,11 @@ rule even between checkpoints — see there.
    (scope, then security, then UX, then details); one decision per
    question, with a safe default stated for each. If the user doesn't know,
    record it as an assumption (in *Problem / Motivation*, once drafted) and
-   continue. Do not proceed past unresolved **critical** unknowns.
+   continue. Do not proceed past unresolved **critical** unknowns. When the
+   feature is a testable interface (a CLI, a config format, a report shape),
+   produce a concrete sample alongside the questions — an example
+   invocation, a sample of the output — so acceptance criteria are anchored
+   to something real, not described in the abstract.
 3. `architect` sketches the approach when the work needs a design decision,
    not just a mechanical change — applying the `architecture-review` skill,
    and `security-review` when anything security-relevant is involved. The
@@ -243,7 +270,16 @@ rule even between checkpoints — see there.
    trade-offs and alternatives considered; an ordered implementation plan
    (steps and affected files); and, when relevant, risks, security
    implications, and the testing strategy. Keep it as simple as the
-   requirements allow.
+   requirements allow. If the approach depends on a mechanism unproven in
+   this repo, run the feasibility spike (per the Ground Rules) and report
+   its result before finalizing the ordered plan — a bounded-out or failed
+   spike is a valid, valuable outcome that changes the approach, not a
+   blocker to push past. The testing strategy itself is held to the same
+   bar it asks of everything else: repeatable and fast. If a proposed way of
+   testing or verifying the feature would be slow, costly, or unrepeatable
+   in real use — something the user would kill rather than wait out — that
+   is a disqualifying finding to raise immediately, not a detail to accept
+   once the mechanism technically works.
 4. **Replanning check:** if the approach conflicts with, or requires
    changing, the constitution, stop here and run
    [Updating an approved file](#updating-an-approved-file) for the affected

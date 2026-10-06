@@ -4,11 +4,8 @@ description: Read-only critic that inspects designs, code, and tests against int
 version: 1.0.0
 model: opus
 model_preference:
-  - "z-ai/glm-5.2"
-  - "deepseek/deepseek-v4-flash"
-  - "minimax/minimax-m3"
-  - "anthropic/claude-opus-5"
-  - "openai/gpt-5.1"
+  - "z-ai/glm-5.3"
+  - "deepseek/deepseek-v4-pro-0813"
 tools:
   - Read
   - Grep

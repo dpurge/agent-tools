@@ -4,11 +4,7 @@ description: Documentation specialist that audits docs against the code and impr
 version: 1.0.0
 model: haiku
 model_preference:
-  - "nvidia/nemotron-3-ultra-550b-a55b:free"
-  - "deepseek/deepseek-v4-flash"
-  - "qwen/qwen3.5-plus-20260420"
-  - "anthropic/claude-haiku-4.5"
-  - "openai/gpt-5-mini"
+  - "google/gemma-4-26b-a4b-it"
 tools:
   - Read
   - Grep

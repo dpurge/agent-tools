@@ -4,11 +4,8 @@ description: Implements approved designs and writes tests. Makes focused code ch
 version: 1.0.0
 model: sonnet
 model_preference:
-  - "deepseek/deepseek-v4-flash"
-  - "z-ai/glm-5.2"
-  - "qwen/qwen3-coder-flash"
-  - "anthropic/claude-sonnet-5"
-  - "openai/gpt-5.1-codex"
+  - "z-ai/glm-5.3-flash"
+  - "deepseek/deepseek-v4-flash-0731"
 tools:
   - Read
   - Write

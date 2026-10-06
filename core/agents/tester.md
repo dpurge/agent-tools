@@ -4,11 +4,8 @@ description: Runs the project's real test/build commands before and after a chan
 version: 1.0.0
 model: sonnet
 model_preference:
-  - "deepseek/deepseek-v4-flash"
-  - "z-ai/glm-5.2"
-  - "qwen/qwen3-coder-flash"
-  - "anthropic/claude-sonnet-5"
-  - "openai/gpt-5.1-codex"
+  - "z-ai/glm-5.3"
+  - "deepseek/deepseek-v4-pro-0813"
 tools:
   - Read
   - Grep

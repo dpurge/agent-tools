@@ -4,11 +4,7 @@ description: Read-only investigator that gathers context, maps the codebase, and
 version: 1.0.0
 model: haiku
 model_preference:
-  - "nvidia/nemotron-3-ultra-550b-a55b:free"
-  - "deepseek/deepseek-v4-flash"
-  - "minimax/minimax-m3"
-  - "anthropic/claude-haiku-4.5"
-  - "openai/gpt-5-mini"
+  - "qwen/qwen3.8-27b"
 tools:
   - Read
   - Grep

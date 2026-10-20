@@ -92,8 +92,8 @@ truth.
 One persistent file per feature/bugfix, `<specs-root>/features/<slug>.md`,
 in the exact format the `feature-spec-format` skill defines. Only
 `technical-writer` writes it, at every phase, transcribing what the
-read-only specialists and `engineer` report. `node scripts/validate-specs.js`
-runs after every write, in every phase.
+read-only specialists and `engineer` report. The specs validator (the
+`spec-validation` skill) runs after every write, in every phase.
 
 0. **Understand the request** — if what's wanted is empty, vague, or
    ambiguous in a way that would change the outcome, ask before proceeding;
@@ -187,8 +187,8 @@ follow-up, never a closed form.
   templates, and are marked `status: approved` — where `<specs-root>` is
   `specs/` unless it was incompatible, per A0.
 - Every `<specs-root>/features/*.md` file matches the `feature-spec-format`
-  skill's templates at every point in its lifecycle, and passes
-  `node scripts/validate-specs.js`.
+  skill's templates at every point in its lifecycle, and passes the specs
+  validator (the `spec-validation` skill).
 - A pre-existing, incompatible `specs/` directory is never overwritten;
   `.agent/specs/` (never committed) is used instead, and the user is told
   which one is in play.

@@ -156,7 +156,7 @@ workflows:   # commands share the same names
 commands: [code, bug, release, doc, research, anki, ebook, story]
 
 extensions:
-  mcp: [rosetta, github, filesystem]
+  mcp: [github, filesystem]
 
 targets:
   claude:   { adapter: adapters/claude-code, package: "@dpurge/claude-agent-tools-plugin" }
@@ -192,12 +192,13 @@ agent-tools/
 │   └── prompts/                  # system-overrides
 │
 ├── adapters/                     # per-platform configuration + dev adapter
-│   ├── claude-code/settings.json
+│   ├── claude-code/settings.json, hooks/   # hooks/: Claude target guard
+│   ├── shared/target-guard.mjs   # guard logic, copied to each host by `npm run sync:guard`
 │   ├── opencode/opencode.json
 │   └── pi/index.js               # runs the extension against core/ during development
 │
 ├── extensions/
-│   ├── mcp/                      # rosetta, github, filesystem MCP server configs
+│   ├── mcp/                      # github, filesystem MCP server configs
 │   └── tools/repo-analyzer/      # standalone repository analysis tool
 │
 ├── packages/                     # publishable packages, assembled by the build
@@ -323,9 +324,22 @@ Editable mode by target:
   at runtime.
 - **Claude Code** — with no `--target` / `--target-dir`, creates symlinks from
   `$CLAUDE_CONFIG_DIR/{skills,agents,workflows,commands,rules}` (defaulting to
-  `~/.claude/`) into this repo's `core/` directories, and merges the rules
-  section directly into `~/.claude/CLAUDE.md` — Claude Code's own user-level
-  memory file — rather than generating one. With `--target`, it installs
+  `~/.claude/`) into this repo's `core/` directories. Claude Code loads the
+  linked `rules/` itself, so the rules are not also merged into
+  `~/.claude/CLAUDE.md`; an older merged section is removed, and the merge is
+  only used as a fallback when a rule file could not be linked. The global
+  install also registers the `kubectl`/`helm` target guard
+  (`adapters/claude-code/hooks/guard-targets.mjs`, a `PreToolUse` Bash hook in
+  `settings.json`); every Claude installer does this (the copy-based
+  `install:claude` copies the script to `.claude/hooks/`). Pass `--no-hooks` to
+  leave it out, or set `AGENT_TOOLS_GUARD=off` to switch it off for a session.
+  OpenCode and Pi ship the same guard inside their plugin (`tool.execute.before`
+  and `tool_call`); for them only `AGENT_TOOLS_GUARD=off` applies. The logic is
+  `adapters/shared/target-guard.mjs`: after editing it, run `npm run sync:guard`.
+  The specs validator ships in the `spec-validation` skill as a self-contained
+  bundle (`validate-specs.mjs`); after editing `scripts/validate-specs.js`, run
+  `npm run build:validator` (a test fails when the bundle is stale).
+  With `--target`, it installs
   project-locally under `.claude/{skills,agents,workflows,commands,rules}` and
   regenerates the project's `CLAUDE.md` instead.
 - **OpenCode** — with no `--target` / `--target-dir`, creates symlinks from
@@ -337,7 +351,9 @@ Editable mode by target:
 
 For Pi, new sessions see `core/commands` automatically; for a running Pi session,
 use `/reload` or restart Pi. For Claude/OpenCode, restart the host if a running
-session does not pick up the changed files.
+session does not pick up the changed files. New skill directories need a re-run
+of the Claude and OpenCode installer (their `skills/` is a directory of
+per-entry links); Pi scans `core/` itself, so it needs only `/reload`.
 
 For OpenCode specifically, agent-tools now also tries to register slash commands
 at runtime through the plugin entrypoint instead of relying only on passive
@@ -371,6 +387,7 @@ What each uninstaller removes:
   - `/path/to/project/.pi/extensions/agent-tools.ts`
 - **Claude global editable install**
   - `~/.claude/{skills,agents,workflows,commands,rules}` symlinks
+  - the target guard entry in `settings.json` (other hooks are kept)
   - only the agent-tools rules section is stripped from `~/.claude/CLAUDE.md`
     (marker-bounded); the rest of that file — a real, user-owned file — is
     left untouched, and the file itself is deleted only if nothing else

@@ -28,6 +28,11 @@ skills:
   - constitution-format
   - feature-spec-format
   - memory-format
+  - spec-validation
+  - safe-operations
+  - testing-playbook
+  - api-verification
+  - ui-verification
   - research-core
   - research-web
   - research-typst
@@ -113,7 +118,6 @@ commands:
 
 extensions:
   mcp:
-    - rosetta
     - github
     - filesystem
 

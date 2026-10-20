@@ -531,12 +531,12 @@ test("rejects and never echoes a secret-shaped memory entry", async () => {
 
 test("warns (does not error) on an over-long memory entry", async () => {
   const dir = await mktemp();
-  const longText = "x".repeat(250);
+  const longText = "x".repeat(450);
   await writeMemory(dir, memoryFile([`2026-09-16T10:00:00Z [domain] ${longText}`]));
 
   const { errors, warnings } = await validateSpecs(dir);
   assert.deepEqual(errors, []);
-  assert.ok(warnings.some(w => w.includes("exceeds 200 characters")));
+  assert.ok(warnings.some(w => w.includes("exceeds 400 characters")));
 
   await fs.rm(dir, { recursive: true, force: true });
 });
@@ -646,4 +646,50 @@ test("warns (does not error) once entry count exceeds the 200-entry threshold", 
   assert.ok(warnings.some(w => w.includes("201 entries exceeds the 200-entry threshold")));
 
   await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("does not warn about a memory entry between 200 and 400 characters", async () => {
+  const dir = await mktemp();
+  await writeMemory(dir, memoryFile([`2026-09-16T10:00:00Z [domain] ${"x".repeat(250)}`]));
+
+  const { errors, warnings } = await validateSpecs(dir);
+  assert.deepEqual(errors, []);
+  assert.ok(!warnings.some(w => w.includes("characters")));
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+async function featureWarnings(featureText) {
+  const dir = await mktemp();
+  await fs.mkdir(path.join(dir, "specs", "features"), { recursive: true });
+  await fs.writeFile(path.join(dir, "specs", "features", "sample.md"), featureText);
+  const result = await validateSpecs(dir);
+  await fs.rm(dir, { recursive: true, force: true });
+  return result;
+}
+
+const MEMORY_LINE = "Memory consulted: [gotcha] helm — 2 relevant entries";
+
+test("warns when an unfinished feature spec's Approach lacks the Memory consulted line", async () => {
+  const { errors, warnings } = await featureWarnings(VALID_FEATURE);
+  assert.deepEqual(errors, []);
+  assert.ok(warnings.some(w => w.includes("Memory consulted")));
+});
+
+test("does not warn when Approach starts with the Memory consulted line", async () => {
+  const { errors, warnings } = await featureWarnings(VALID_FEATURE.replace("## Approach\nap", `## Approach\n${MEMORY_LINE}\nap`));
+  assert.deepEqual(errors, []);
+  assert.ok(!warnings.some(w => w.includes("Memory consulted")));
+});
+
+test("does not ask a finished feature spec for the Memory consulted line", async () => {
+  const { errors, warnings } = await featureWarnings(VALID_FEATURE.replace("status: draft", "status: done"));
+  assert.deepEqual(errors, []);
+  assert.ok(!warnings.some(w => w.includes("Memory consulted")));
+});
+
+test("a Memory consulted line in another section does not satisfy the Approach check", async () => {
+  const text = VALID_FEATURE.replace("## Affected Areas\naa", `## Affected Areas\n${MEMORY_LINE}`);
+  const { warnings } = await featureWarnings(text);
+  assert.ok(warnings.some(w => w.includes("Memory consulted")));
 });

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { denialReason, findViolation, guardEnabled } from "./target-guard.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ASSET_DIRS = ["skills", "agents", "workflows", "commands"];
@@ -59,6 +60,23 @@ function resolveRegistrar(api) {
   return null;
 }
 
+/**
+ * OpenCode `tool.execute.before` hook: throws (which blocks the call) when a
+ * bash command runs kubectl or helm without naming its cluster (see the
+ * `operations` rule).
+ */
+export function guardToolExecution(input, output, env = process.env) {
+  if (!guardEnabled(env) || input?.tool !== "bash") {
+    return;
+  }
+
+  const command = output?.args?.command;
+  const violation = typeof command === "string" ? findViolation(command) : null;
+  if (violation) {
+    throw new Error(denialReason(violation));
+  }
+}
+
 export function createOpenCodePlugin(root = resolveAssetRoot()) {
   const commands = listMarkdown(path.join(root, "commands"));
   const reserved = new Set(["agent-tools", "skills", "agents", "workflows"]);
@@ -97,6 +115,7 @@ export function createOpenCodePlugin(root = resolveAssetRoot()) {
       name: "agent-tools",
       commands: registered,
       assetRoot: root,
+      "tool.execute.before": async (input, output) => guardToolExecution(input, output),
     };
   };
 }

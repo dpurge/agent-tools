@@ -3,6 +3,7 @@
 import path from "node:path";
 import {
   ROOT,
+  applyGuardHook,
   copyDir,
   ensureDir,
   fail,
@@ -15,7 +16,7 @@ import {
   writeRulesDocument,
 } from "./lib/install-common.js";
 
-const { force, targetDir } = parseInstallerArgs();
+const { force, targetDir, noHooks } = parseInstallerArgs();
 const CLAUDE_DIR = path.join(targetDir, ".claude");
 
 async function installPlugin() {
@@ -75,6 +76,9 @@ async function mergeSettings(manifest) {
     };
   }
 
+  // Blocks kubectl/helm calls that do not name their cluster; --no-hooks opts out.
+  await applyGuardHook(settings, { claudeDir: CLAUDE_DIR, copy: true, noHooks });
+
   await writeJson(
     settingsFile,
     settings
@@ -110,6 +114,7 @@ Installed:
   .claude/agents
   .claude/workflows
   .claude/plugins/agent-tools
+  .claude/hooks (target guard; --no-hooks to skip)
   CLAUDE.md
 
 Start Claude Code:

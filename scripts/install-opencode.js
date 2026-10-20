@@ -11,13 +11,15 @@ import {
   installManifestComponents,
   installRules,
   ok,
+  warnGuardOptOut,
   parseInstallerArgs,
   readJson,
   readManifest,
   writeJson,
 } from "./lib/install-common.js";
 
-const { force, targetDir } = parseInstallerArgs();
+const { force, targetDir, noHooks } = parseInstallerArgs();
+warnGuardOptOut(noHooks, "OpenCode");
 const OPENCODE_DIR = path.join(targetDir, ".opencode");
 
 async function mergeConfig(manifest) {

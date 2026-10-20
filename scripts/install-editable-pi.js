@@ -6,12 +6,14 @@ import {
   ensureDir,
   fail,
   ok,
+  warnGuardOptOut,
   parseEditableInstallerArgs,
   piAgentDir,
   writeExtensionShim,
 } from "./lib/install-common.js";
 
-const { force, targetDir } = parseEditableInstallerArgs();
+const { force, targetDir, noHooks } = parseEditableInstallerArgs();
+warnGuardOptOut(noHooks, "Pi");
 const globalInstall = !targetDir;
 const extensionDir = globalInstall
   ? path.join(piAgentDir(), "extensions")

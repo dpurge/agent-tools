@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Target guard: a `tool_call` handler blocks bash `kubectl` and `helm` commands that name no
+  cluster (`--kubeconfig`, or `--kube-context` for helm). Set
+  `AGENT_TOOLS_GUARD=off` to disable it.
 - The `/code` command included in this Pi extension now also checks
   `CHANGELOG.md` for drift during Documentation review (B4) and fills in
   missing entries during Documentation update (B5), filed under

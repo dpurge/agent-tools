@@ -15,9 +15,11 @@ import {
   ROOT,
   componentPath,
   installManifestMcp,
+  syncGuardModule,
   listedComponentDestination,
   readManifest,
 } from "./lib/install-common.js";
+import { writeValidatorBundle } from "./build-validator.js";
 const PACKAGES = path.join(ROOT, "packages");
 
 // Generated targets removed before each build. Never lists package.json,
@@ -172,6 +174,9 @@ async function main() {
   console.log("\nAssembling agent-tools packages...\n");
 
   const manifest = await readManifest();
+
+  await syncGuardModule();
+  await writeValidatorBundle();
 
   if (!manifest.targets) {
     throw new Error("No targets defined in agent-tools.yaml");

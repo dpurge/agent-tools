@@ -29,13 +29,106 @@ export function fail(message) {
 export function parseInstallerArgs(args = process.argv.slice(2)) {
   const force = args.includes("--force");
   const targetDir = args.find(arg => arg.startsWith("--target="))?.split("=")[1] ?? ROOT;
-  return { force, targetDir };
+  const noHooks = args.includes("--no-hooks");
+  return { force, targetDir, noHooks };
 }
 
 export function parseEditableInstallerArgs(args = process.argv.slice(2)) {
   const force = args.includes("--force");
   const targetDir = args.find(arg => arg.startsWith("--target="))?.split("=")[1] ?? null;
-  return { force, targetDir };
+  const noHooks = args.includes("--no-hooks");
+  return { force, targetDir, noHooks };
+}
+
+const GUARD_HOOK_FILE = "guard-targets.mjs";
+const GUARD_MODULE_FILE = "target-guard.mjs";
+
+/** Single source of the host-neutral guard logic, and the copies each host ships. */
+export const GUARD_SOURCE = path.join("adapters", "shared", GUARD_MODULE_FILE);
+export const GUARD_COPIES = [
+  path.join("adapters", "claude-code", "hooks", GUARD_MODULE_FILE),
+  path.join("packages", "pi-agent-tools-extension", GUARD_MODULE_FILE),
+  path.join("packages", "opencode-agent-tools-plugin", GUARD_MODULE_FILE),
+];
+
+/** OpenCode and Pi load the guard from inside the plugin, so only the env switch turns it off. */
+export function warnGuardOptOut(noHooks, host) {
+  if (noHooks) {
+    warn(`--no-hooks does not apply to ${host}: its target guard is part of the plugin. Set AGENT_TOOLS_GUARD=off to disable it.`);
+  }
+}
+
+/** Refresh every copy of the guard module from its source. */
+export async function syncGuardModule() {
+  for (const copy of GUARD_COPIES) {
+    await fs.copyFile(path.join(ROOT, GUARD_SOURCE), path.join(ROOT, copy));
+  }
+}
+
+/**
+ * Remove the agent-tools target guard from a Claude settings object (in
+ * place), leaving every other hook alone. Matches on the script's file name.
+ */
+export function removeGuardHook(settings) {
+  const entries = settings.hooks?.PreToolUse;
+  if (!Array.isArray(entries)) {
+    return settings;
+  }
+
+  settings.hooks.PreToolUse = entries
+    .map(entry => ({
+      ...entry,
+      hooks: (entry.hooks ?? []).filter(hook => !String(hook.command ?? "").includes(GUARD_HOOK_FILE)),
+    }))
+    .filter(entry => entry.hooks.length > 0);
+
+  if (settings.hooks.PreToolUse.length === 0) {
+    delete settings.hooks.PreToolUse;
+  }
+  if (Object.keys(settings.hooks).length === 0) {
+    delete settings.hooks;
+  }
+  return settings;
+}
+
+/**
+ * Install or remove the target guard in a Claude settings object, the same way
+ * for every Claude installer. `copy: false` (editable) points at the script in
+ * this checkout; `copy: true` copies it into `<claudeDir>/hooks` so the
+ * install keeps working without the checkout. `noHooks` removes it instead.
+ */
+export async function applyGuardHook(settings, { claudeDir, copy, noHooks }) {
+  if (noHooks) {
+    removeGuardHook(settings);
+    return false;
+  }
+
+  const source = path.join(ROOT, "adapters", "claude-code", "hooks", GUARD_HOOK_FILE);
+  if (!copy) {
+    addGuardHook(settings, source);
+    return true;
+  }
+
+  await ensureDir(path.join(claudeDir, "hooks"));
+  await fs.copyFile(source, path.join(claudeDir, "hooks", GUARD_HOOK_FILE));
+  await fs.copyFile(
+    path.join(path.dirname(source), GUARD_MODULE_FILE),
+    path.join(claudeDir, "hooks", GUARD_MODULE_FILE),
+  );
+  addGuardHook(settings, `$CLAUDE_PROJECT_DIR/.claude/hooks/${GUARD_HOOK_FILE}`);
+  return true;
+}
+
+/** Register the target guard as a PreToolUse Bash hook. Idempotent. */
+export function addGuardHook(settings, hookFile) {
+  removeGuardHook(settings);
+  settings.hooks = settings.hooks ?? {};
+  settings.hooks.PreToolUse = settings.hooks.PreToolUse ?? [];
+  settings.hooks.PreToolUse.push({
+    matcher: "Bash",
+    hooks: [{ type: "command", command: `node ${JSON.stringify(hookFile)}`, timeout: 10 }],
+  });
+  return settings;
 }
 
 export async function exists(file) {
@@ -271,6 +364,30 @@ export async function removeRulesSectionFromFile(file) {
   }
 
   return true;
+}
+
+/**
+ * True when every `core/rules/*.md` file is reachable under `rulesDir` as a
+ * link to the same file. Claude Code loads `~/.claude/rules/*.md` itself, so
+ * merging the same text into CLAUDE.md as well would load every rule twice.
+ */
+export async function rulesAreLinked(rulesDir) {
+  const sourceDir = path.join(ROOT, "core", "rules");
+  if (!(await exists(sourceDir)) || !(await exists(rulesDir))) {
+    return false;
+  }
+
+  const files = (await fs.readdir(sourceDir)).filter(file => file.endsWith(".md"));
+  for (const file of files) {
+    const linked = path.join(rulesDir, file);
+    if (!(await exists(linked))) {
+      return false;
+    }
+    if ((await fs.realpath(linked)) !== (await fs.realpath(path.join(sourceDir, file)))) {
+      return false;
+    }
+  }
+  return files.length > 0;
 }
 
 /**

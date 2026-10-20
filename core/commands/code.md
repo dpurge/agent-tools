@@ -10,8 +10,10 @@ Specs persist across sessions under a **specs root** — normally `specs/` at
 the project root, but see [A0](#a0-resolve-the-specs-root) for what happens
 when a project already has an incompatible `specs/`. There are two parts:
 establish the **constitution** once, then drive every feature or bugfix
-through the **feature/bugfix loop**. Run `node scripts/validate-specs.js`
-(or `agent-tools validate-specs`) immediately after every write under the
+through the **feature/bugfix loop**. Run the specs validator (see the
+`spec-validation` skill: a self-contained script next to its `SKILL.md`; it
+needs no install and no `agent-tools` command, so never report it as
+unavailable without trying it) immediately after every write under the
 specs root, in both parts — the model drafting these files is often small
 and not very capable, and this catches a malformed file before it compounds
 across phases. **Every "run `validate-specs`" instruction below means run it
@@ -44,10 +46,12 @@ These apply throughout, both parts:
   [B2](#b2-feature-implementation) for where it matters most.
 - **Model tiering.** `coordinator`, `architect`, and `reviewer` do the
   planning, architecture, and coordination — use big, capable models there.
-  `engineer`, `tester`, `researcher`, and `technical-writer` do mechanical
-  implementation, validation, research, and write-up once that thinking is
-  done — smaller/cheaper models are the right fit there, and this is
-  intentional, not a quality shortcut. `coordinator` should hand each of
+  `engineer`, `tester`, and `researcher` do mechanical implementation,
+  validation, and research once that thinking is done — smaller/cheaper
+  models are the right fit there, and this is intentional, not a quality
+  shortcut. `technical-writer` writes the specs, docs, and changelogs that
+  everyone else relies on, so it uses a capable model: a small one
+  misreported its own edits and stated facts it had not checked. `coordinator` should hand each of
   these roles small, well-scoped chunks rather than one large task, to keep
   both context and cost down.
 - **Scratch files** an agent needs only for the current step go in
@@ -63,6 +67,19 @@ These apply throughout, both parts:
   don't just describe the change, show the actual proposed text. **Never**
   add model or tool attribution anywhere: not in commits, PR descriptions,
   code comments, or docs.
+- **Targets and environments.** Before any command that touches a cluster,
+  cloud account, container runtime, or database, follow the `operations`
+  rule and the `safe-operations` skill: name the target explicitly, check it
+  against the dev targets the constitution records (`tech-stack.md`), read
+  first and mutate second, and clean up what you started. Production or any
+  shared target only when the human explicitly asks for it.
+- **Briefs and verification.** Every brief to a specialist states the goal and
+  the evidence already known, the exact files and scope, what it must not do,
+  how its work will be verified, an expected duration or bound, and the
+  report format. A specialist's summary is a claim: before a step is reported
+  as done, check at least one non-trivial claim and that every requested edit
+  exists (ask `tester`, or check it directly), and report the check with the
+  result.
 - **Spikes are minimal, isolated, and self-bounding — never monitored into
   safety.** A feasibility check for an unproven mechanism (an external CLI, a
   new provider, a subprocess) tests exactly that one unknown, stripped of any
@@ -106,8 +123,8 @@ session — call it `<specs-root>`. Every reference below to, e.g.,
 
 1. **`specs/` doesn't exist yet** → `<specs-root>` = `specs/`. Continue to
    A1.
-2. **`specs/` exists** → run `validate-specs` against it
-   (`agent-tools validate-specs` or `node scripts/validate-specs.js`).
+2. **`specs/` exists** → run `validate-specs` against it (the
+   `spec-validation` skill).
    - **No errors** → `<specs-root>` = `specs/`. Continue to A1.
    - **Errors** — this project's `specs/` predates `/code` or means
      something else and doesn't follow the required format. Check
@@ -152,7 +169,11 @@ gather once rather than per file:
   citation baked into `mission.md` goes stale the moment the line moves.
 - **Tech stack:** languages, runtimes, frameworks, key libraries, build
   tooling, CI/CD, deployment targets — read manifests/lockfiles/CI configs,
-  don't infer from vibes.
+  don't infer from vibes. Also collect the dev and test targets and how to
+  address each one explicitly (kubeconfig or context, cloud project,
+  registry, database), and the naming conventions in use for config keys,
+  API fields, and database columns; ask the human when either is not
+  documented. Both belong in `tech-stack.md`.
 - **Roadmap:** open TODOs, `docs/TODO.md`-style files, half-finished code
   paths, and anything the user has already stated in this conversation about
   what's next. Roadmap is the one file that is mostly user-authored, not
@@ -250,9 +271,11 @@ rule even between checkpoints — see there.
 
 1. `researcher` gathers the context needed: affected files, modules, and
    dependencies; existing patterns and conventions to follow; and a
-   targeted `Grep` of `memory.md` for the affected area or tag — report any
-   relevant entries found, don't read the file in full. Note unknowns
-   explicitly rather than guessing past them.
+   targeted `Grep` of `memory.md` for the affected area or tag — quote the
+   exact pattern(s) you grepped and the number of hits, and report any
+   relevant entries found; don't read the file in full. "None relevant" is a
+   valid result, skipping the grep is not. Note unknowns explicitly rather
+   than guessing past them.
 2. **Ask questions.** Before designing, resolve the ambiguities that would
    change the outcome: up to ~5 focused questions, highest-impact first
    (scope, then security, then UX, then details); one decision per
@@ -289,8 +312,9 @@ rule even between checkpoints — see there.
 5. `technical-writer` writes `<specs-root>/features/<slug>.md` with sections
    *Problem / Motivation*, *Acceptance Criteria*, *Approach*, *Affected
    Areas*, *Out of Scope* filled in (the ordered plan and any risks/testing
-   strategy from step 3 go in *Approach*); the later sections say "Not
-   started.". `status: draft`. Run `validate-specs`.
+   strategy from step 3 go in *Approach*, which begins with the `Memory
+   consulted: <pattern(s)> — <N relevant entries, or none relevant>` line
+   from step 1); the later sections say "Not started.". `status: draft`. Run `validate-specs`.
 6. **🚦 HITL — approve the spec.** Present it as a short narrative: the
    problem, the chosen approach and why, and any open assumptions from
    step 2 — not a raw dump. **Stop and wait** for explicit approval; iterate
@@ -374,7 +398,11 @@ rule even between checkpoints — see there.
 
 1. `tester` runs the real test/build commands and reports pass/fail, with
    exact output for any failure, and whether it's a regression against
-   B2's baseline or pre-existing.
+   B2's baseline or pre-existing. It reports pass, skip, and fail counts per
+   suite: a skipped test is unverified, so it finds out why the test skipped
+   and runs it with the dependency the project provides for testing; a green
+   run with silent skips is not validation. It also runs the real artifact
+   once against realistic input (see the `testing-playbook` skill).
 2. On failure: grep `memory.md` for `[gotcha]` entries mentioning the
    failing command first — it may be a known issue with a known cause.
    Then, back to [B2](#b2-feature-implementation) to fix forward
@@ -386,6 +414,12 @@ rule even between checkpoints — see there.
    `status: validating`, runs `validate-specs`.
 
 ### B4. Documentation review
+
+The review is executed, not proposed: routine documentation fixes (README,
+`CHANGELOG.md`, spec sections) are applied without a checkpoint, and only
+constitution changes wait for approval (step 2). Give `technical-writer` the
+numbered list of edits and the facts to verify, and check its report against
+the files (see *Briefs and verification* in the ground rules).
 
 1. `technical-writer` applies the `doc` skill against the docs this
    feature could have affected — README, `CHANGELOG.md`, other project docs,

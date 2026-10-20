@@ -16,8 +16,9 @@ It is optimized to be grepped, not read: strict, one-line-per-entry, so an
 agent can pull in a handful of relevant lines instead of loading the whole
 file into context.
 
-`scripts/validate-specs.js` enforces the exact shape below via its
-`MEMORY_*` constants. If you change the format here, update those constants
+The specs validator (the `spec-validation` skill; its source is
+`scripts/validate-specs.js` in agent-tools) enforces the exact shape below via
+its `MEMORY_*` constants. If you change the format here, update those constants
 to match — they are kept in sync by hand, not derived from each other.
 
 ## Memory vs. constitution vs. feature spec
@@ -59,8 +60,10 @@ line counts and grep output honest).
 YYYY-MM-DDTHH:MM:SSZ [tag] text
 ```
 
-One line, single spaces, no trailing whitespace, whole line ≤ 200 characters
-(a validator warning, not an error, if exceeded).
+One line, single spaces, no trailing whitespace, whole line ≤ 400 characters
+(a validator warning, not an error, if exceeded). Keep the fact and its "why"
+in one line; split a longer story into separate entries rather than cutting
+the context that makes it usable.
 
 - **Timestamp** — ISO 8601 UTC, seconds precision, literal `Z`
   (`2026-09-16T14:32:00Z`). Lexical sort equals chronological sort, and UTC

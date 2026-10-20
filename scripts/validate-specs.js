@@ -12,10 +12,11 @@
 // skills' prose. Keep both in sync by hand when a format changes.
 //
 
+import { realpathSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import matter from "front-matter";
-import { parseInstallerArgs } from "./lib/install-common.js";
 
 const COLORS = {
   red: "\x1b[31m",
@@ -90,6 +91,10 @@ const FEATURE_STATUSES = new Set([
 
 const FEATURE_KINDS = new Set(["feature", "bugfix"]);
 
+// Specs still being worked on must record the memory.md lookup in *Approach*;
+// finished specs are exempt so old ones do not add warning noise.
+const ACTIVE_FEATURE_STATUSES = new Set(["draft", "approved", "implementing", "validating", "documenting"]);
+
 const MEMORY_HEADER = [
   "# Project Memory",
   "",
@@ -101,7 +106,7 @@ const MEMORY_TAGS = new Set(["build", "convention", "decision", "domain", "env",
 
 const MEMORY_ENTRY_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z \[([a-z]+)\] (.+)$/;
 
-const MEMORY_MAX_LINE = 200;
+const MEMORY_MAX_LINE = 400;
 const MEMORY_MAX_ENTRIES = 200;
 
 // Control characters (Cc, e.g. a bare \r) and format characters (Cf, which
@@ -151,6 +156,17 @@ const NONPORTABLE_PATTERNS = [
 
 function extractHeadings(body) {
   return [...body.matchAll(/^##\s+(.+?)\s*$/gm)].map(m => m[1].trim());
+}
+
+function sectionText(body, heading) {
+  const lines = body.split(/\r?\n/);
+  const start = lines.findIndex(line => line === `## ${heading}`);
+  if (start === -1) {
+    return "";
+  }
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex(line => /^## /.test(line));
+  return (end === -1 ? rest : rest.slice(0, end)).join("\n");
 }
 
 function checkSections(label, body, required) {
@@ -416,6 +432,11 @@ async function validateFeatureFile(specsDir, file, labelPrefix) {
     );
   }
   checkSections(label, parsed.body, FEATURE_SECTIONS);
+  if (ACTIVE_FEATURE_STATUSES.has(attributes.status) && !/^Memory consulted:/m.test(sectionText(parsed.body, "Approach"))) {
+    warn(
+      `${label}: Approach has no "Memory consulted:" line — grep memory.md for the affected area or tag and record the pattern and what it found (or "none relevant")`
+    );
+  }
   if (errors.length === before) {
     ok(`${label} matches the feature-spec format`);
   }
@@ -580,10 +601,10 @@ export async function validateSpecs(targetDir) {
 }
 
 function parseValidateSpecsArgs() {
-  const { targetDir } = parseInstallerArgs();
   const args = process.argv.slice(2);
+  const targetDir = args.find(a => a.startsWith("--target="))?.split("=")[1] ?? process.cwd();
   const dirArg = args.find(a => a.startsWith("--dir="))?.split("=")[1];
-  return dirArg ? path.resolve(dirArg) : path.join(targetDir, "specs");
+  return dirArg ? path.resolve(dirArg) : path.join(path.resolve(targetDir), "specs");
 }
 
 async function main() {
@@ -620,7 +641,18 @@ async function main() {
   console.log(`${COLORS.green}specs validation successful${COLORS.reset}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Compare real paths: the script is also reached through symlinks (editable
+// installs link skill directories) and a plain URL comparison would then skip
+// main() and silently validate nothing.
+function isRunDirectly() {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isRunDirectly()) {
   main().catch(err => {
     console.error(err);
     process.exit(1);

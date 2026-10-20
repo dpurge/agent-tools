@@ -17,6 +17,7 @@ permissions:
 skills:
   - architecture-review
   - security-review
+  - api-verification
 ---
 
 # Architect

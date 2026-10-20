@@ -3,6 +3,7 @@
 import path from "node:path";
 import {
   ROOT,
+  applyGuardHook,
   claudeHomeDir,
   ensureDir,
   fail,
@@ -11,11 +12,13 @@ import {
   ok,
   parseEditableInstallerArgs,
   readJson,
+  removeRulesSectionFromFile,
+  rulesAreLinked,
   writeJson,
   writeRulesDocument,
 } from "./lib/install-common.js";
 
-const { force, targetDir } = parseEditableInstallerArgs();
+const { force, targetDir, noHooks } = parseEditableInstallerArgs();
 const globalInstall = !targetDir;
 const claudeDir = globalInstall ? claudeHomeDir() : path.join(targetDir, ".claude");
 
@@ -28,6 +31,9 @@ async function mergeSettings() {
   settings.agentTools.loadSkills = true;
   settings.agentTools.loadAgents = true;
   settings.agentTools.loadWorkflows = true;
+
+  // Blocks kubectl/helm calls that do not name their cluster; --no-hooks opts out.
+  await applyGuardHook(settings, { claudeDir, copy: false, noHooks });
 
   await writeJson(settingsFile, settings);
   ok("Updated Claude settings.json");
@@ -43,10 +49,17 @@ async function main() {
   }
 
   if (globalInstall) {
-    // No project root to hold a sibling AGENTS.md at user scope, so the
-    // rules section is merged directly into the global CLAUDE.md instead of
-    // the project-local `@AGENTS.md` indirection writeRulesDocument uses.
-    await mergeRulesIntoAgentsFile(path.join(claudeDir, "CLAUDE.md"));
+    const globalClaudeMd = path.join(claudeDir, "CLAUDE.md");
+    if (await rulesAreLinked(path.join(claudeDir, "rules"))) {
+      // Claude Code already loads the linked rules/ directory, so a merged
+      // copy in CLAUDE.md would load every rule twice. Drop an older copy.
+      await removeRulesSectionFromFile(globalClaudeMd);
+    } else {
+      // No project root to hold a sibling AGENTS.md at user scope, so the
+      // rules section is merged directly into the global CLAUDE.md instead of
+      // the project-local `@AGENTS.md` indirection writeRulesDocument uses.
+      await mergeRulesIntoAgentsFile(globalClaudeMd);
+    }
   } else {
     await writeRulesDocument(path.join(targetDir, "CLAUDE.md"), { force });
   }

@@ -59,7 +59,15 @@ Fixed `##` sections, in order:
 - **Infrastructure & tooling** — build, test, CI/CD, packaging, release
   process, deployment targets.
 - **Key conventions** — repo-specific constraints a contributor or agent must
-  follow.
+  follow. Where the project has them, include its **naming conventions** (the
+  case of config keys, API fields, query parameters, database columns,
+  environment variables, and user-chosen identifiers, and which existing
+  names are legacy) and its **environment targets** (the dev and test target
+  for each cluster, cloud project, registry, and database, how to address
+  each one explicitly with a flag or absolute path rather than an
+  environment variable or default, and which targets are production and off
+  limits unless the human asks). These are bullets inside this section, not
+  new sections.
 
 Entirely evidence-grounded: read manifests, lockfiles, and CI config; never
 infer from vibes.
@@ -68,7 +76,7 @@ infer from vibes.
 
 An optional `### Artifacts` subsection nested inside `## Infrastructure &
 tooling` (not a new top-level `##` section — the fixed `##` list above is
-exact and order-enforced by `scripts/validate-specs.js`'s `checkSections`;
+exact and order-enforced by the specs validator's `checkSections`;
 a `###` subheading is invisible to that check, so adding this subsection
 never breaks an existing `tech-stack.md`). It declares every artifact the
 project produces — a published package, a deployed service or app, anything

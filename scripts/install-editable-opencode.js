@@ -8,6 +8,7 @@ import {
   fail,
   linkDirectoryEntries,
   ok,
+  warnGuardOptOut,
   opencodeHomeDir,
   parseEditableInstallerArgs,
   readJson,
@@ -15,7 +16,8 @@ import {
   writeJson,
 } from "./lib/install-common.js";
 
-const { force, targetDir } = parseEditableInstallerArgs();
+const { force, targetDir, noHooks } = parseEditableInstallerArgs();
+warnGuardOptOut(noHooks, "OpenCode");
 const globalInstall = !targetDir;
 const opencodeDir = globalInstall ? opencodeHomeDir() : path.join(targetDir, ".opencode");
 

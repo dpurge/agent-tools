@@ -7,6 +7,7 @@ import {
   fail,
   parseEditableInstallerArgs,
   readJson,
+  removeGuardHook,
   removePath,
   removeRulesSectionFromFile,
   unlinkDirectoryEntries,
@@ -34,10 +35,11 @@ async function main() {
 
   const settingsFile = path.join(claudeDir, "settings.json");
   const settings = await readJson(settingsFile);
+  removeGuardHook(settings);
   if (settings.agentTools) {
     delete settings.agentTools;
-    await writeJson(settingsFile, settings);
   }
+  await writeJson(settingsFile, settings);
 
   console.log(`
 Editable Claude uninstall complete.

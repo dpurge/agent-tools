@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSubagentTool } from "./subagent-tool.js";
+import { denialReason, findViolation, guardEnabled } from "./target-guard.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -79,6 +80,21 @@ function skillRootForPrompt() {
  * Build the Pi extension entry point. Exported as a factory so it can be
  * exercised in tests against a fixture asset root.
  */
+/**
+ * Pi `tool_call` handler: blocks a bash command that runs kubectl or helm
+ * without naming its cluster (see the `operations` rule). Returns undefined to
+ * let every other call through.
+ */
+export function guardToolCall(event, env = process.env) {
+  if (!guardEnabled(env) || event?.toolName !== "bash") {
+    return undefined;
+  }
+
+  const command = event.input?.command;
+  const violation = typeof command === "string" ? findViolation(command) : null;
+  return violation ? { block: true, reason: denialReason(violation) } : undefined;
+}
+
 export function createExtension(root = resolveAssetRoot()) {
   const components = loadComponents(root);
 
@@ -165,6 +181,10 @@ export function createExtension(root = resolveAssetRoot()) {
     }
 
     pi.registerTool(createSubagentTool(root));
+
+    if (typeof pi.on === "function") {
+      pi.on("tool_call", event => guardToolCall(event));
+    }
 
     return {
       name: "agent-tools",

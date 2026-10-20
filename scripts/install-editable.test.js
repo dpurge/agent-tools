@@ -72,7 +72,48 @@ test("editable Claude install with no --target installs globally to CLAUDE_CONFI
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
   assert.equal(await lstatType(path.join(env.CLAUDE_CONFIG_DIR, "commands")), "symlink");
-  assert.equal(await lstatType(path.join(env.CLAUDE_CONFIG_DIR, "CLAUDE.md")), "file");
+  assert.equal(await lstatType(path.join(env.CLAUDE_CONFIG_DIR, "rules")), "symlink");
+  // The linked rules/ directory is loaded by Claude Code itself, so no copy
+  // of the rules is merged into CLAUDE.md (that would load them twice).
+  await assert.rejects(fs.lstat(path.join(env.CLAUDE_CONFIG_DIR, "CLAUDE.md")));
+
+  await fs.rm(tempHome, { recursive: true, force: true });
+});
+
+test("editable Claude global install removes a stale merged rules block and keeps the user's own notes", async () => {
+  const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-claude-home-stale-"));
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: path.join(tempHome, "claude") };
+  const claudeMd = path.join(env.CLAUDE_CONFIG_DIR, "CLAUDE.md");
+
+  await fs.mkdir(env.CLAUDE_CONFIG_DIR, { recursive: true });
+  await fs.writeFile(
+    claudeMd,
+    "# My own notes\n\n<!-- agent-tools:rules:start -->\nstale copy\n<!-- agent-tools:rules:end -->\n",
+    "utf8",
+  );
+
+  const result = run("install-editable-claude.js", ["--force"], env);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const content = await fs.readFile(claudeMd, "utf8");
+  assert.match(content, /My own notes/);
+  assert.doesNotMatch(content, /agent-tools:rules:start/);
+
+  await fs.rm(tempHome, { recursive: true, force: true });
+});
+
+test("editable Claude global install falls back to merging rules when rules/ cannot be linked", async () => {
+  const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-claude-home-fallback-"));
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: path.join(tempHome, "claude") };
+
+  // A real file with a rule's name makes the install skip that link (no
+  // --force), so the rules would otherwise be missing from the session.
+  await fs.mkdir(path.join(env.CLAUDE_CONFIG_DIR, "rules"), { recursive: true });
+  await fs.writeFile(path.join(env.CLAUDE_CONFIG_DIR, "rules", "operations.md"), "my own rule\n", "utf8");
+
+  const result = run("install-editable-claude.js", [], env);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
   const content = await fs.readFile(path.join(env.CLAUDE_CONFIG_DIR, "CLAUDE.md"), "utf8");
   assert.match(content, /agent-tools:rules:start/);
 
@@ -87,8 +128,11 @@ test("editable Claude global uninstall strips the rules section but keeps the us
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
   const claudeMd = path.join(env.CLAUDE_CONFIG_DIR, "CLAUDE.md");
-  const existing = await fs.readFile(claudeMd, "utf8");
-  await fs.writeFile(claudeMd, `# My own notes\n\n${existing}`, "utf8");
+  await fs.writeFile(
+    claudeMd,
+    "# My own notes\n\n<!-- agent-tools:rules:start -->\nmerged copy\n<!-- agent-tools:rules:end -->\n",
+    "utf8",
+  );
 
   result = run("uninstall-editable-claude.js", [], env);
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -97,6 +141,63 @@ test("editable Claude global uninstall strips the rules section but keeps the us
   const remaining = await fs.readFile(claudeMd, "utf8");
   assert.match(remaining, /My own notes/);
   assert.doesNotMatch(remaining, /agent-tools:rules:start/);
+
+  await fs.rm(tempHome, { recursive: true, force: true });
+});
+
+async function readSettings(configDir) {
+  return JSON.parse(await fs.readFile(path.join(configDir, "settings.json"), "utf8"));
+}
+
+test("editable Claude global install registers the target guard once, and --no-hooks leaves it out", async () => {
+  const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-claude-home-hook-"));
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: path.join(tempHome, "claude") };
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = run("install-editable-claude.js", ["--force"], env);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+  }
+
+  const entries = (await readSettings(env.CLAUDE_CONFIG_DIR)).hooks.PreToolUse;
+  assert.equal(entries.length, 1, "re-running must not duplicate the hook");
+  assert.equal(entries[0].matcher, "Bash");
+  assert.match(entries[0].hooks[0].command, /adapters\/claude-code\/hooks\/guard-targets\.mjs/);
+
+  const result = run("install-editable-claude.js", ["--force", "--no-hooks"], env);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal((await readSettings(env.CLAUDE_CONFIG_DIR)).hooks, undefined);
+
+  await fs.rm(tempHome, { recursive: true, force: true });
+});
+
+test("editable Claude project-local install registers the target guard like the global one", async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-editable-claude-nohook-"));
+
+  const result = run("install-editable-claude.js", [`--target=${temp}`, "--force"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const entries = (await readSettings(path.join(temp, ".claude"))).hooks.PreToolUse;
+  assert.equal(entries.length, 1);
+  assert.match(entries[0].hooks[0].command, /guard-targets\.mjs/);
+
+  await fs.rm(temp, { recursive: true, force: true });
+});
+
+test("editable Claude global uninstall removes only the target guard and keeps the user's other hooks", async () => {
+  const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-claude-home-hook-uninstall-"));
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: path.join(tempHome, "claude") };
+  const settingsFile = path.join(env.CLAUDE_CONFIG_DIR, "settings.json");
+
+  await fs.mkdir(env.CLAUDE_CONFIG_DIR, { recursive: true });
+  const own = { matcher: "Bash", hooks: [{ type: "command", command: "echo mine" }] };
+  await fs.writeFile(settingsFile, JSON.stringify({ hooks: { PreToolUse: [own] } }), "utf8");
+
+  let result = run("install-editable-claude.js", ["--force"], env);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal((await readSettings(env.CLAUDE_CONFIG_DIR)).hooks.PreToolUse.length, 2);
+
+  result = run("uninstall-editable-claude.js", [], env);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.deepEqual((await readSettings(env.CLAUDE_CONFIG_DIR)).hooks.PreToolUse, [own]);
 
   await fs.rm(tempHome, { recursive: true, force: true });
 });
@@ -274,4 +375,39 @@ test("CLI uninstall-editable pi routes to the editable uninstaller", async () =>
   await assert.rejects(fs.lstat(path.join(env.PI_CODING_AGENT_DIR, "extensions", "agent-tools.ts")));
 
   await fs.rm(tempHome, { recursive: true, force: true });
+});
+
+test("copy-based Claude install copies the target guard into .claude/hooks and registers it", async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-copy-claude-hook-"));
+
+  const result = run("install-claude.js", [`--target=${temp}`, "--force"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const copied = path.join(temp, ".claude", "hooks", "guard-targets.mjs");
+  assert.equal(await lstatType(copied), "file");
+
+  const entries = (await readSettings(path.join(temp, ".claude"))).hooks.PreToolUse;
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].matcher, "Bash");
+  assert.equal(entries[0].hooks[0].command, 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/guard-targets.mjs"');
+
+  // The installed copy must work on its own, without this checkout.
+  const guard = spawnSync(process.execPath, [copied], {
+    input: JSON.stringify({ tool_name: "Bash", tool_input: { command: "kubectl get pods" } }),
+    encoding: "utf8",
+  });
+  assert.equal(JSON.parse(guard.stdout).hookSpecificOutput.permissionDecision, "deny");
+
+  await fs.rm(temp, { recursive: true, force: true });
+});
+
+test("copy-based Claude install with --no-hooks registers no guard", async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "agent-tools-copy-claude-nohook-"));
+
+  const result = run("install-claude.js", [`--target=${temp}`, "--force", "--no-hooks"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal((await readSettings(path.join(temp, ".claude"))).hooks, undefined);
+  await assert.rejects(fs.lstat(path.join(temp, ".claude", "hooks", "guard-targets.mjs")));
+
+  await fs.rm(temp, { recursive: true, force: true });
 });

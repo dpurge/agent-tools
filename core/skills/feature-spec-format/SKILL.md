@@ -11,13 +11,13 @@ version: 1.0.0
 One file per feature or bugfix, at `specs/features/<slug>.md`, that the
 `/code` feature/bugfix loop reads and updates in place as the work moves
 through its phases. Fixed frontmatter and section list so the format stays
-checkable by `scripts/validate-specs.js` — this matters more here than for
+checkable by the specs validator (the `spec-validation` skill) — this matters more here than for
 most docs, because the model drafting or updating this file is often small
 and not very capable, and a rigid, flat structure is what keeps that
 reliable.
 
-`scripts/validate-specs.js` enforces the exact frontmatter keys and section
-list below. If you change either here, update that script's
+The specs validator (source: `scripts/validate-specs.js` in agent-tools)
+enforces the exact frontmatter keys and section list below. If you change either here, update that script's
 `FEATURE_SECTIONS`/`FEATURE_STATUSES`/`FEATURE_KINDS` constants to match —
 they are kept in sync by hand, not derived from each other.
 
@@ -58,7 +58,10 @@ Fixed `##` sections, in this exact order, nothing else:
 
 1. **Problem / Motivation** — what's wrong or missing, and why it matters.
 2. **Acceptance Criteria** — concrete, checkable conditions for "done."
-3. **Approach** — the chosen implementation approach and key decisions.
+3. **Approach** — the chosen implementation approach and key decisions. Its
+   first line is `Memory consulted: <grep pattern(s)> — <N relevant entries, or
+   none relevant>`, recording the `memory.md` lookup made before designing
+   (the validator warns when an unfinished spec lacks it).
 4. **Affected Areas** — files, modules, or docs this is expected to touch.
 5. **Out of Scope** — what this feature/bugfix deliberately does not cover.
 6. **Implementation Notes** — filled in during implementation: what was
@@ -85,7 +88,7 @@ started." instead, so the file always has the full fixed shape.
   `reviewer`) reported, and what `engineer` did, rather than each of them
   writing directly. This keeps one consistent writer and keeps the other
   roles' read-only tool grants meaningful.
-- Run `node scripts/validate-specs.js` (or `agent-tools validate-specs`)
+- Run the specs validator (the `spec-validation` skill)
   immediately after every write to this file. Fix and re-validate before
   moving on — don't let a malformed file accumulate through several phases.
 - `version` increments only on a change to sections 1–5 (the approved

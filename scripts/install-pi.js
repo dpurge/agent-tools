@@ -9,13 +9,15 @@ import {
   installManifestComponents,
   installRules,
   ok,
+  warnGuardOptOut,
   parseInstallerArgs,
   readJson,
   readManifest,
   writeJson,
 } from "./lib/install-common.js";
 
-const { force, targetDir } = parseInstallerArgs();
+const { force, targetDir, noHooks } = parseInstallerArgs();
+warnGuardOptOut(noHooks, "Pi");
 const PI_DIR = path.join(targetDir, ".pi");
 
 async function installExtension() {

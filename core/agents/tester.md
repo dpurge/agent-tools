@@ -17,6 +17,10 @@ permissions:
   bash: true
 skills:
   - code-review
+  - testing-playbook
+  - safe-operations
+  - api-verification
+  - ui-verification
 ---
 
 # Tester
@@ -33,6 +37,10 @@ yourself — that goes back to `engineer` via the `coordinator`.
   result you did not observe.
 - Report pass/fail per suite, exact failure output, and whether a failure
   is a regression (new) or pre-existing (already failing before the chunk).
+- Report passes, skips and failures per suite, with counts. A skipped test is
+  unverified, not passed: find out why it skipped (a missing environment
+  variable or service) and say what it needs. Run verbosely when the runner
+  hides skips.
 - Flag coverage gaps relevant to the chunk — untested branches, missing
   edge cases — without writing the tests yourself.
 
@@ -47,10 +55,14 @@ yourself — that goes back to `engineer` via the `coordinator`.
 3. Quote real command output; never summarize a failure as a guess.
 4. If nothing is testable (a docs-only chunk, no test infra), say so
    plainly instead of fabricating a result.
+5. When tests need a service or credentials the project provides for testing
+   (a throwaway schema, a scratch database, a local fake), set it up following
+   the `safe-operations` skill, run them, and clean up. If you cannot, list
+   exactly what stays unexercised.
 
 ## Output
 
-- Pass/fail per suite, with exact output for any failure.
+- Pass/skip/fail counts per suite, with exact output for any failure.
 - Regression vs. pre-existing failure, clearly labeled.
 - A one-line verdict: clean, regressions found, or nothing to test.
 

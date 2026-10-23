@@ -3,6 +3,8 @@ import test from "node:test";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { validateSpecs, validateSpecsDir } from "./validate-specs.js";
 
@@ -668,6 +670,8 @@ async function featureWarnings(featureText) {
   return result;
 }
 
+const DONE_FEATURE = VALID_FEATURE.replace("status: draft", "status: done").replaceAll("Not started.", "Done.");
+
 const MEMORY_LINE = "Memory consulted: [gotcha] helm — 2 relevant entries";
 
 test("warns when an unfinished feature spec's Approach lacks the Memory consulted line", async () => {
@@ -683,7 +687,7 @@ test("does not warn when Approach starts with the Memory consulted line", async 
 });
 
 test("does not ask a finished feature spec for the Memory consulted line", async () => {
-  const { errors, warnings } = await featureWarnings(VALID_FEATURE.replace("status: draft", "status: done"));
+  const { errors, warnings } = await featureWarnings(DONE_FEATURE);
   assert.deepEqual(errors, []);
   assert.ok(!warnings.some(w => w.includes("Memory consulted")));
 });
@@ -692,4 +696,173 @@ test("a Memory consulted line in another section does not satisfy the Approach c
   const text = VALID_FEATURE.replace("## Affected Areas\naa", `## Affected Areas\n${MEMORY_LINE}`);
   const { warnings } = await featureWarnings(text);
   assert.ok(warnings.some(w => w.includes("Memory consulted")));
+});
+
+test("errors when a done feature spec still has a Not started. section, naming spec and section", async () => {
+  for (const section of ["Implementation Notes", "Validation", "Documentation Review", "Documentation Updates"]) {
+    const text = DONE_FEATURE.replace(`## ${section}\nDone.`, `## ${section}\nNot started.`);
+    const { errors } = await featureWarnings(text);
+    assert.deepEqual(errors, [`specs/features/sample.md: status is done but section '${section}' is still "Not started."`]);
+  }
+});
+
+test("does not error on Not started. in a spec that is not done, or when a done spec has real content", async () => {
+  const notDone = await featureWarnings(VALID_FEATURE.replace("status: draft", "status: documenting"));
+  assert.deepEqual(notDone.errors, []);
+  const done = await featureWarnings(DONE_FEATURE.replace("## Validation\nDone.", "## Validation\n12 pass, 0 skip.\nNot started."));
+  assert.deepEqual(done.errors, []);
+});
+
+const IMPLEMENTING_FEATURE = VALID_FEATURE.replace("status: draft", "status: implementing");
+
+async function stalledWarnings(text, today) {
+  const dir = await mktemp();
+  await fs.mkdir(path.join(dir, "specs", "features"), { recursive: true });
+  await fs.writeFile(path.join(dir, "specs", "features", "sample.md"), text);
+  const result = await validateSpecs(dir, { today });
+  await fs.rm(dir, { recursive: true, force: true });
+  return result.warnings.filter(w => w.includes("stalled"));
+}
+
+test("warns when implementing, validating or documenting work was last updated more than 2 days ago", async () => {
+  for (const status of ["implementing", "validating", "documenting"]) {
+    const text = VALID_FEATURE.replace("status: draft", `status: ${status}`);
+    assert.deepEqual(await stalledWarnings(text, "2026-09-19"), [
+      `specs/features/sample.md: stalled: sample has been ${status} since 2026-09-16; finish B3-B5 or say why`,
+    ]);
+  }
+});
+
+test("does not warn at exactly 2 days, for draft/approved/done specs, or for an unquoted date", async () => {
+  assert.deepEqual(await stalledWarnings(IMPLEMENTING_FEATURE, "2026-09-18"), []);
+  assert.deepEqual(await stalledWarnings(VALID_FEATURE, "2026-12-01"), []);
+  assert.deepEqual(await stalledWarnings(DONE_FEATURE, "2026-12-01"), []);
+  assert.equal((await stalledWarnings(IMPLEMENTING_FEATURE.replace("updated: 2026-09-16", 'updated: "2026-09-16"'), "2026-09-19")).length, 1);
+});
+
+async function nowCheck({ now, featureStatus, writeFeature = true, roadmapPath = "specs/roadmap.md", artifacts = false }) {
+  const dir = await mktemp();
+  await writeRoadmapAt(dir, roadmapPath, VALID_ROADMAP.replace("## Now\nn", `## Now\n${now}`));
+  if (artifacts) {
+    await writeTechStack(
+      dir,
+      techStackWithArtifacts(
+        "### Artifacts\n\n| Artifact | Root | Roadmap |\n| --- | --- | --- |\n| app | app/ | `" + roadmapPath + "` |"
+      )
+    );
+  }
+  if (writeFeature) {
+    const text = DONE_FEATURE.replace("status: done", `status: ${featureStatus}`).replaceAll("Done.", "Not started.");
+    await writeRoadmapAt(dir, "specs/features/login.md", featureStatus === "done" ? DONE_FEATURE : text);
+  }
+  const result = await validateSpecs(dir);
+  await fs.rm(dir, { recursive: true, force: true });
+  return result;
+}
+
+const NOW_LINE = "- Add login — branch `login` — specs/features/login.md";
+
+test("errors when a Now line points to a done feature spec", async () => {
+  const { errors } = await nowCheck({ now: NOW_LINE, featureStatus: "done" });
+  assert.deepEqual(errors, ["specs/roadmap.md: closed feature still listed in Now: login (remove the line, /code B5)"]);
+});
+
+test("accepts a Now line pointing to a feature spec that is still in flight", async () => {
+  const { errors } = await nowCheck({ now: NOW_LINE, featureStatus: "implementing" });
+  assert.deepEqual(errors, []);
+});
+
+test("warns, without erroring, when a Now line points to a missing feature spec", async () => {
+  const { errors, warnings } = await nowCheck({ now: NOW_LINE, featureStatus: "done", writeFeature: false });
+  assert.deepEqual(errors, []);
+  assert.ok(warnings.includes("specs/roadmap.md: Now line points to a feature spec that does not exist: specs/features/login.md"));
+});
+
+test("ignores Now lines without a feature spec path", async () => {
+  const { errors, warnings } = await nowCheck({ now: "- something in flight", featureStatus: "done", writeFeature: false });
+  assert.deepEqual(errors, []);
+  assert.ok(!warnings.some(w => w.includes("Now line")));
+});
+
+test("checks the Now section of a declared per-artifact roadmap too", async () => {
+  const { errors } = await nowCheck({
+    now: NOW_LINE,
+    featureStatus: "done",
+    roadmapPath: "specs/artifacts/app/roadmap.md",
+    artifacts: true,
+  });
+  assert.deepEqual(errors, [
+    "specs/artifacts/app/roadmap.md: closed feature still listed in Now: login (remove the line, /code B5)",
+  ]);
+});
+
+test("--today and VALIDATE_SPECS_TODAY drive the CLI staleness check", async () => {
+  const dir = await mktemp();
+  await fs.mkdir(path.join(dir, "specs", "features"), { recursive: true });
+  await fs.writeFile(path.join(dir, "specs", "features", "sample.md"), IMPLEMENTING_FEATURE);
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), "validate-specs.js");
+  const run = (args, env = {}) =>
+    spawnSync(process.execPath, [script, `--target=${dir}`, ...args], { encoding: "utf8", env: { ...process.env, ...env } });
+
+  assert.match(run(["--today=2026-09-19"]).stdout, /stalled: sample has been implementing since 2026-09-16/);
+  assert.doesNotMatch(run(["--today=2026-09-18"]).stdout, /stalled/);
+  assert.match(run([], { VALIDATE_SPECS_TODAY: "2026-09-19" }).stdout, /stalled/);
+  assert.notEqual(run(["--today=tomorrow"]).status, 0);
+
+  await fs.rm(dir, { recursive: true, force: true });
+});
+
+// E3: a done spec updated on or after 2026-10-24 records its CI/release decision.
+const CI_ERROR = "specs/features/sample.md: status is done but Documentation Review has no CI/release decision";
+const lateDone = (review = "Done.") =>
+  DONE_FEATURE.replace("updated: 2026-09-16", "updated: 2026-10-24").replace("## Documentation Review\nDone.", `## Documentation Review\n${review}`);
+const ciErrors = async (text, options) => {
+  const dir = await mktemp();
+  await fs.mkdir(path.join(dir, "specs", "features"), { recursive: true });
+  await fs.writeFile(path.join(dir, "specs", "features", "sample.md"), text);
+  const result = await validateSpecs(dir, options);
+  await fs.rm(dir, { recursive: true, force: true });
+  return result.errors.filter(e => e.includes("CI/release decision"));
+};
+
+test("errors when a done spec updated from the cutoff on has no CI/release decision", async () => {
+  const errors = await ciErrors(lateDone());
+  assert.equal(errors.length, 1);
+  assert.ok(errors[0].startsWith(CI_ERROR));
+  assert.match(errors[0], /"\{file, needs change: yes\/no, reason\}".*"CI review: not applicable \(reason\)"/);
+});
+
+test("accepts a needs change decision (any case, either answer) or a CI review: not applicable line", async () => {
+  for (const review of [
+    "{`.github/workflows/ci.yml`, needs change: yes, new test step}",
+    "{Taskfile.yml, needs change: no, no new command}",
+    "Needs Change:   NO - reason",
+    "Docs only.\nCI review: not applicable (no build or release input changed)",
+  ]) {
+    assert.deepEqual(await ciErrors(lateDone(review)), [], review);
+  }
+  // The not-applicable form counts only at the start of a line.
+  assert.equal((await ciErrors(lateDone("see: CI review: not applicable"))).length, 1);
+});
+
+test("does not require the CI decision for older done specs or for specs that are not done", async () => {
+  assert.deepEqual(await ciErrors(DONE_FEATURE), []);
+  assert.deepEqual(await ciErrors(lateDone().replace("updated: 2026-10-24", "updated: 2026-10-23")), []);
+  assert.deepEqual(await ciErrors(lateDone().replace("status: done", "status: documenting")), []);
+});
+
+test("the CI decision cutoff compares the spec's updated date, not --today", async () => {
+  assert.equal((await ciErrors(lateDone(), { today: "2026-01-01" })).length, 1);
+  assert.deepEqual(await ciErrors(DONE_FEATURE, { today: "2027-06-01" }), []);
+
+  const dir = await mktemp();
+  await fs.mkdir(path.join(dir, "specs", "features"), { recursive: true });
+  await fs.writeFile(path.join(dir, "specs", "features", "sample.md"), lateDone());
+  const script = path.join(path.dirname(fileURLToPath(import.meta.url)), "validate-specs.js");
+  for (const today of ["2026-01-01", "2027-06-01"]) {
+    const run = spawnSync(process.execPath, [script, `--target=${dir}`, `--today=${today}`], { encoding: "utf8" });
+    assert.notEqual(run.status, 0);
+    assert.match(run.stdout + run.stderr, /Documentation Review has no CI\/release decision/);
+  }
+  await fs.rm(dir, { recursive: true, force: true });
 });

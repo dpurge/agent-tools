@@ -162,6 +162,10 @@ test("editable Claude global install registers the target guard once, and --no-h
   assert.equal(entries.length, 1, "re-running must not duplicate the hook");
   assert.equal(entries[0].matcher, "Bash");
   assert.match(entries[0].hooks[0].command, /adapters\/claude-code\/hooks\/guard-targets\.mjs/);
+  const stop = (await readSettings(env.CLAUDE_CONFIG_DIR)).hooks.Stop;
+  assert.equal(stop.length, 1, "re-running must not duplicate the closeout hook");
+  assert.equal(stop[0].matcher, undefined);
+  assert.match(stop[0].hooks[0].command, /adapters\/claude-code\/hooks\/closeout-guard\.mjs/);
 
   const result = run("install-editable-claude.js", ["--force", "--no-hooks"], env);
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -178,6 +182,8 @@ test("editable Claude project-local install registers the target guard like the 
   const entries = (await readSettings(path.join(temp, ".claude"))).hooks.PreToolUse;
   assert.equal(entries.length, 1);
   assert.match(entries[0].hooks[0].command, /guard-targets\.mjs/);
+  const stop = (await readSettings(path.join(temp, ".claude"))).hooks.Stop;
+  assert.match(stop[0].hooks[0].command, /closeout-guard\.mjs/);
 
   await fs.rm(temp, { recursive: true, force: true });
 });
@@ -189,15 +195,17 @@ test("editable Claude global uninstall removes only the target guard and keeps t
 
   await fs.mkdir(env.CLAUDE_CONFIG_DIR, { recursive: true });
   const own = { matcher: "Bash", hooks: [{ type: "command", command: "echo mine" }] };
-  await fs.writeFile(settingsFile, JSON.stringify({ hooks: { PreToolUse: [own] } }), "utf8");
+  const ownStop = { hooks: [{ type: "command", command: "echo mine too" }] };
+  await fs.writeFile(settingsFile, JSON.stringify({ hooks: { PreToolUse: [own], Stop: [ownStop] } }), "utf8");
 
   let result = run("install-editable-claude.js", ["--force"], env);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.equal((await readSettings(env.CLAUDE_CONFIG_DIR)).hooks.PreToolUse.length, 2);
+  assert.equal((await readSettings(env.CLAUDE_CONFIG_DIR)).hooks.Stop.length, 2);
 
   result = run("uninstall-editable-claude.js", [], env);
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.deepEqual((await readSettings(env.CLAUDE_CONFIG_DIR)).hooks.PreToolUse, [own]);
+  assert.deepEqual((await readSettings(env.CLAUDE_CONFIG_DIR)).hooks, { PreToolUse: [own], Stop: [ownStop] });
 
   await fs.rm(tempHome, { recursive: true, force: true });
 });
@@ -391,6 +399,17 @@ test("copy-based Claude install copies the target guard into .claude/hooks and r
   assert.equal(entries[0].matcher, "Bash");
   assert.equal(entries[0].hooks[0].command, 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/guard-targets.mjs"');
 
+  // The Stop hook is copied too, and finds the installed validator at ../skills.
+  const closeout = path.join(temp, ".claude", "hooks", "closeout-guard.mjs");
+  assert.equal(await lstatType(closeout), "file");
+  const stop = (await readSettings(path.join(temp, ".claude"))).hooks.Stop;
+  assert.equal(stop.length, 1);
+  assert.equal(stop[0].hooks[0].command, 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/closeout-guard.mjs"');
+  assert.equal(
+    await lstatType(path.join(temp, ".claude", "skills", "spec-validation", "validate-specs.mjs")),
+    "file",
+  );
+
   // The installed copy must work on its own, without this checkout.
   const guard = spawnSync(process.execPath, [copied], {
     input: JSON.stringify({ tool_name: "Bash", tool_input: { command: "kubectl get pods" } }),
@@ -408,6 +427,7 @@ test("copy-based Claude install with --no-hooks registers no guard", async () =>
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.equal((await readSettings(path.join(temp, ".claude"))).hooks, undefined);
   await assert.rejects(fs.lstat(path.join(temp, ".claude", "hooks", "guard-targets.mjs")));
+  await assert.rejects(fs.lstat(path.join(temp, ".claude", "hooks", "closeout-guard.mjs")));
 
   await fs.rm(temp, { recursive: true, force: true });
 });

@@ -192,7 +192,7 @@ agent-tools/
 │   └── prompts/                  # system-overrides
 │
 ├── adapters/                     # per-platform configuration + dev adapter
-│   ├── claude-code/settings.json, hooks/   # hooks/: Claude target guard
+│   ├── claude-code/settings.json, hooks/   # hooks/: Claude target guard and closeout (Stop) guard
 │   ├── shared/target-guard.mjs   # guard logic, copied to each host by `npm run sync:guard`
 │   ├── opencode/opencode.json
 │   └── pi/index.js               # runs the extension against core/ during development
@@ -336,9 +336,27 @@ Editable mode by target:
   OpenCode and Pi ship the same guard inside their plugin (`tool.execute.before`
   and `tool_call`); for them only `AGENT_TOOLS_GUARD=off` applies. The logic is
   `adapters/shared/target-guard.mjs`: after editing it, run `npm run sync:guard`.
+  The same installers also register a `Stop` hook,
+  `adapters/claude-code/hooks/closeout-guard.mjs`: when git shows changes under
+  the project's `specs/` (or `.agent/specs/`), it runs the specs validator and
+  blocks the session from ending (exit 2, reason on stderr) only for the
+  closeout errors (a closed feature still in `## Now`, a `done` spec with a
+  "Not started." section, a `done` spec with no CI/release decision). It never
+  blocks when it cannot verify, and `--no-hooks` skips it with the target guard.
+  Set `AGENT_TOOLS_CLOSEOUT=off` to disable it for a session. It cannot loop
+  or burn tokens, whatever the host does: at most 2 blocks per session, never
+  the same message twice, at most about 1200 characters of feedback, a 20 s
+  hook timeout (10 s for the validator), and it lets the session end on any
+  error. It covers Claude Code only; OpenCode and Pi have no equivalent and are
+  not affected.
   The specs validator ships in the `spec-validation` skill as a self-contained
   bundle (`validate-specs.mjs`); after editing `scripts/validate-specs.js`, run
-  `npm run build:validator` (a test fails when the bundle is stale).
+  `npm run build:validator` (a test fails when the bundle is stale). Besides the
+  formats it flags unfinished closeout (see `validate:specs` below); `/code`
+  B0, B4 step 2 and the B5 closeout checklist, and `/release` phase 5
+  (release automation check), are the matching process steps. `/code` also
+  requires a non-test call site (`grep -n` evidence) for every new function,
+  type, config key or route a specialist reports.
   With `--target`, it installs
   project-locally under `.claude/{skills,agents,workflows,commands,rules}` and
   regenerates the project's `CLAUDE.md` instead.
@@ -387,7 +405,7 @@ What each uninstaller removes:
   - `/path/to/project/.pi/extensions/agent-tools.ts`
 - **Claude global editable install**
   - `~/.claude/{skills,agents,workflows,commands,rules}` symlinks
-  - the target guard entry in `settings.json` (other hooks are kept)
+  - the target guard and closeout guard entries in `settings.json` (other hooks are kept)
   - only the agent-tools rules section is stripped from `~/.claude/CLAUDE.md`
     (marker-bounded); the rest of that file — a real, user-owned file — is
     left untouched, and the file itself is deleted only if nothing else
@@ -473,7 +491,7 @@ agent-tools uninstall-editable <target> Uninstall editable mode (claude | openco
 | Script | Purpose |
 | ------ | ------- |
 | `npm run validate` | Validate manifest, assets, and package wiring |
-| `npm run validate:specs` | Validate a project's `specs/` against the constitution, feature-spec, and memory formats |
+| `npm run validate:specs` | Validate a project's `specs/` against the constitution, feature-spec, and memory formats, plus closeout checks: a `done` spec still in a roadmap `## Now` (error), a `done` spec with a "Not started." closeout section (error), a `done` spec updated on or after 2026-10-24 whose *Documentation Review* has neither a `needs change: yes/no` decision nor a `CI review: not applicable` line (error, E3), and open work not updated for more than 2 days (`stalled:` warning). `--today=YYYY-MM-DD` (or `VALIDATE_SPECS_TODAY`) fixes the date for the stalled check |
 | `npm run build` | Assemble each `packages/*` from `core/` |
 | `npm run test:scripts` | Run root-level script and CLI integration tests |
 | `npm run test:packages` | Run each package's own tests |

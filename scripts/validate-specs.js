@@ -27,6 +27,8 @@ const COLORS = {
 
 let errors = [];
 let warnings = [];
+// Injectable so the staleness rule is testable; set per validateSpecsDir call.
+let today = currentDate();
 
 function error(message) {
   errors.push(message);
@@ -51,6 +53,10 @@ async function exists(file) {
   } catch {
     return false;
   }
+}
+
+function currentDate() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -94,6 +100,26 @@ const FEATURE_KINDS = new Set(["feature", "bugfix"]);
 // Specs still being worked on must record the memory.md lookup in *Approach*;
 // finished specs are exempt so old ones do not add warning noise.
 const ACTIVE_FEATURE_STATUSES = new Set(["draft", "approved", "implementing", "validating", "documenting"]);
+
+// A finished spec must not still carry the template placeholder in the
+// sections that record the work; a long-open spec is flagged as stalled so a
+// feature that was finished but never closed out does not look abandoned.
+const CLOSEOUT_SECTIONS = ["Implementation Notes", "Validation", "Documentation Review", "Documentation Updates"];
+const PLACEHOLDER_BODY = "Not started.";
+const OPEN_WORK_STATUSES = new Set(["implementing", "validating", "documenting"]);
+const STALLED_AFTER_DAYS = 2;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// E3 (a done spec records its CI/release decision) applies only to specs
+// updated on or after this date. It is a grandfathering date, not "today":
+// specs finished before the rule existed carry no such record and need no edit.
+const CI_REVIEW_REQUIRED_FROM = "2026-10-24";
+const CI_DECISION_RE = /needs change:\s*(yes|no)/i;
+const CI_NOT_APPLICABLE_RE = /^CI review: not applicable/m;
+
+// Matches the feature-spec path in a roadmap `## Now` line, as written
+// (`specs/features/<slug>.md`, possibly under another prefix or in backticks).
+const NOW_FEATURE_PATH_RE = /(?:^|[\s`(<])((?:[^\s`)>]*\/)?features\/([A-Za-z0-9._-]+)\.md)/;
 
 const MEMORY_HEADER = [
   "# Project Memory",
@@ -195,6 +221,55 @@ function checkVersionAndDate(label, attributes) {
   }
 }
 
+/** Normalizes the `updated` frontmatter value (string or Date) to YYYY-MM-DD, or null. */
+function toDateString(value) {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+  }
+  return typeof value === "string" && DATE_RE.test(value) ? value : null;
+}
+
+/**
+ * Checks a roadmap's `## Now` lines against the feature specs they point to:
+ * a spec that is already `done` must not stay listed (error), and a pointer
+ * to a spec file that does not exist is suspicious (warning).
+ */
+async function checkNowLines(label, body, specsDir, projectRoot) {
+  for (const line of sectionText(body, "Now").split(/\r?\n/)) {
+    const match = NOW_FEATURE_PATH_RE.exec(line);
+    if (!match) {
+      continue;
+    }
+    const [, writtenPath, slug] = match;
+    // The path is written repo-relative (`specs/features/x.md`); resolve it
+    // against the specs root so a shadow `.agent/specs/` root works too.
+    const candidates = [
+      path.join(specsDir, writtenPath.replace(/^(?:\.agent\/)?specs\//, "")),
+      path.join(projectRoot, writtenPath),
+    ];
+    let file = null;
+    for (const candidate of candidates) {
+      if (await exists(candidate)) {
+        file = candidate;
+        break;
+      }
+    }
+    if (!file) {
+      warn(`${label}: Now line points to a feature spec that does not exist: ${writtenPath}`);
+      continue;
+    }
+    let status;
+    try {
+      status = matter(await fs.readFile(file, "utf8")).attributes.status;
+    } catch {
+      continue; // the feature file's own parse error is reported by validateFeatureFile
+    }
+    if (status === "done") {
+      error(`${label}: closed feature still listed in Now: ${slug} (remove the line, /code B5)`);
+    }
+  }
+}
+
 /**
  * Shared schema check for every file that follows the constitution format
  * (frontmatter `version`/`status`/`updated` plus a fixed, ordered `##`
@@ -223,7 +298,7 @@ async function readFrontmatter(label, file) {
   }
 }
 
-async function validateConstitutionFile(specsDir, name, labelPrefix) {
+async function validateConstitutionFile(specsDir, name, labelPrefix, projectRoot) {
   const file = path.join(specsDir, name);
   if (!(await exists(file))) {
     return;
@@ -237,6 +312,9 @@ async function validateConstitutionFile(specsDir, name, labelPrefix) {
 
   const before = errors.length;
   checkConstitutionSchema(label, parsed.attributes, parsed.body, name);
+  if (name === "roadmap.md") {
+    await checkNowLines(label, parsed.body, specsDir, projectRoot);
+  }
   if (errors.length === before) {
     ok(`${label} matches the constitution format`);
   }
@@ -355,7 +433,7 @@ function discoverExtraRoadmapPaths(rows, specsDir, projectRoot) {
  * (see `checkConstitutionSchema`). Labeled by its own repo-relative path
  * rather than a `labelPrefix`, since these files live outside `specs/`.
  */
-async function validateExtraRoadmapFile(projectRoot, relPath) {
+async function validateExtraRoadmapFile(specsDir, projectRoot, relPath) {
   const file = path.join(projectRoot, relPath);
   const label = relPath;
 
@@ -371,6 +449,7 @@ async function validateExtraRoadmapFile(projectRoot, relPath) {
 
   const before = errors.length;
   checkConstitutionSchema(label, parsed.attributes, parsed.body, "roadmap.md");
+  await checkNowLines(label, parsed.body, specsDir, projectRoot);
   if (errors.length === before) {
     ok(`${label} matches the roadmap format`);
   }
@@ -405,7 +484,34 @@ async function validateDeclaredRoadmaps(specsDir, projectRoot) {
   }
 
   for (const relPath of discoverExtraRoadmapPaths(rows, specsDir, projectRoot)) {
-    await validateExtraRoadmapFile(projectRoot, relPath);
+    await validateExtraRoadmapFile(specsDir, projectRoot, relPath);
+  }
+}
+
+/** E2 (done specs carry no placeholder sections), E3 (done specs record the CI/release decision) and W1 (open work is not stalled). */
+function checkFeatureCloseout(label, slug, attributes, body) {
+  if (attributes.status === "done") {
+    for (const section of CLOSEOUT_SECTIONS) {
+      if (sectionText(body, section).trim() === PLACEHOLDER_BODY) {
+        error(`${label}: status is done but section '${section}' is still "${PLACEHOLDER_BODY}"`);
+      }
+    }
+
+    // Compares the spec's own `updated` date, never `today`, so the result does not change over time.
+    const updated = toDateString(attributes.updated);
+    const review = sectionText(body, "Documentation Review");
+    if (updated && updated >= CI_REVIEW_REQUIRED_FROM && !CI_DECISION_RE.test(review) && !CI_NOT_APPLICABLE_RE.test(review)) {
+      error(
+        `${label}: status is done but Documentation Review has no CI/release decision (add "{file, needs change: yes/no, reason}" per changed or checked file, or "CI review: not applicable (reason)")`
+      );
+    }
+  }
+
+  if (OPEN_WORK_STATUSES.has(attributes.status)) {
+    const updated = toDateString(attributes.updated);
+    if (updated && (Date.parse(today) - Date.parse(updated)) / DAY_MS > STALLED_AFTER_DAYS) {
+      warn(`${label}: stalled: ${slug} has been ${attributes.status} since ${updated}; finish B3-B5 or say why`);
+    }
   }
 }
 
@@ -437,6 +543,7 @@ async function validateFeatureFile(specsDir, file, labelPrefix) {
       `${label}: Approach has no "Memory consulted:" line — grep memory.md for the affected area or tag and record the pattern and what it found (or "none relevant")`
     );
   }
+  checkFeatureCloseout(label, path.basename(file, ".md"), attributes, parsed.body);
   if (errors.length === before) {
     ok(`${label} matches the feature-spec format`);
   }
@@ -559,16 +666,22 @@ async function validateMemoryFile(specsDir, labelPrefix) {
  * that might see a shadow root (like `main()`) must compute and pass it
  * explicitly.
  */
-export async function validateSpecsDir(specsDir, labelPrefix = "specs/", projectRoot = path.dirname(specsDir)) {
+export async function validateSpecsDir(
+  specsDir,
+  labelPrefix = "specs/",
+  projectRoot = path.dirname(specsDir),
+  options = {}
+) {
   errors = [];
   warnings = [];
+  today = options.today ?? currentDate();
 
   if (!(await exists(specsDir))) {
     return { errors, warnings, exists: false };
   }
 
   for (const name of Object.keys(CONSTITUTION_SECTIONS)) {
-    await validateConstitutionFile(specsDir, name, labelPrefix);
+    await validateConstitutionFile(specsDir, name, labelPrefix, projectRoot);
   }
 
   await validateDeclaredRoadmaps(specsDir, projectRoot);
@@ -591,9 +704,9 @@ export async function validateSpecsDir(specsDir, labelPrefix = "specs/", project
 }
 
 /** Convenience wrapper: validate `<targetDir>/specs`. */
-export async function validateSpecs(targetDir) {
+export async function validateSpecs(targetDir, options = {}) {
   const specsDir = path.join(targetDir, "specs");
-  const result = await validateSpecsDir(specsDir, "specs/", targetDir);
+  const result = await validateSpecsDir(specsDir, "specs/", targetDir, options);
   if (!result.exists) {
     console.log("No specs/ directory yet — nothing to validate.");
   }
@@ -604,11 +717,17 @@ function parseValidateSpecsArgs() {
   const args = process.argv.slice(2);
   const targetDir = args.find(a => a.startsWith("--target="))?.split("=")[1] ?? process.cwd();
   const dirArg = args.find(a => a.startsWith("--dir="))?.split("=")[1];
-  return dirArg ? path.resolve(dirArg) : path.join(path.resolve(targetDir), "specs");
+  const specsDir = dirArg ? path.resolve(dirArg) : path.join(path.resolve(targetDir), "specs");
+  // --today / VALIDATE_SPECS_TODAY exist so the staleness check is testable.
+  const todayArg = args.find(a => a.startsWith("--today="))?.split("=")[1] ?? process.env.VALIDATE_SPECS_TODAY;
+  if (todayArg !== undefined && !DATE_RE.test(todayArg)) {
+    throw new Error(`--today / VALIDATE_SPECS_TODAY must be YYYY-MM-DD (got ${JSON.stringify(todayArg)})`);
+  }
+  return { specsDir, today: todayArg };
 }
 
 async function main() {
-  const specsDir = parseValidateSpecsArgs();
+  const { specsDir, today: todayOption } = parseValidateSpecsArgs();
   const isShadowRoot = path.basename(path.dirname(specsDir)) === ".agent";
   const labelPrefix = isShadowRoot ? ".agent/specs/" : "specs/";
   // A shadow `.agent/specs/` root's project root is two directories up
@@ -620,7 +739,8 @@ async function main() {
   const { errors: foundErrors, warnings: foundWarnings, exists: dirExists } = await validateSpecsDir(
     specsDir,
     labelPrefix,
-    projectRoot
+    projectRoot,
+    { today: todayOption }
   );
 
   if (!dirExists) {

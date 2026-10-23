@@ -2949,6 +2949,7 @@ var COLORS = {
 };
 var errors = [];
 var warnings = [];
+var today = currentDate();
 function error(message) {
   errors.push(message);
 }
@@ -2968,6 +2969,9 @@ async function exists(file) {
   } catch {
     return false;
   }
+}
+function currentDate() {
+  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
 }
 var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 var CONSTITUTION_SECTIONS = {
@@ -3002,6 +3006,15 @@ var FEATURE_STATUSES = /* @__PURE__ */ new Set([
 ]);
 var FEATURE_KINDS = /* @__PURE__ */ new Set(["feature", "bugfix"]);
 var ACTIVE_FEATURE_STATUSES = /* @__PURE__ */ new Set(["draft", "approved", "implementing", "validating", "documenting"]);
+var CLOSEOUT_SECTIONS = ["Implementation Notes", "Validation", "Documentation Review", "Documentation Updates"];
+var PLACEHOLDER_BODY = "Not started.";
+var OPEN_WORK_STATUSES = /* @__PURE__ */ new Set(["implementing", "validating", "documenting"]);
+var STALLED_AFTER_DAYS = 2;
+var DAY_MS = 24 * 60 * 60 * 1e3;
+var CI_REVIEW_REQUIRED_FROM = "2026-10-24";
+var CI_DECISION_RE = /needs change:\s*(yes|no)/i;
+var CI_NOT_APPLICABLE_RE = /^CI review: not applicable/m;
+var NOW_FEATURE_PATH_RE = /(?:^|[\s`(<])((?:[^\s`)>]*\/)?features\/([A-Za-z0-9._-]+)\.md)/;
 var MEMORY_HEADER = [
   "# Project Memory",
   "",
@@ -3069,6 +3082,45 @@ function checkVersionAndDate(label, attributes) {
     error(`${label}: frontmatter 'updated' must be an ISO date YYYY-MM-DD (got ${JSON.stringify(updated)})`);
   }
 }
+function toDateString(value) {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+  }
+  return typeof value === "string" && DATE_RE.test(value) ? value : null;
+}
+async function checkNowLines(label, body, specsDir, projectRoot) {
+  for (const line of sectionText(body, "Now").split(/\r?\n/)) {
+    const match = NOW_FEATURE_PATH_RE.exec(line);
+    if (!match) {
+      continue;
+    }
+    const [, writtenPath, slug] = match;
+    const candidates = [
+      path.join(specsDir, writtenPath.replace(/^(?:\.agent\/)?specs\//, "")),
+      path.join(projectRoot, writtenPath)
+    ];
+    let file = null;
+    for (const candidate of candidates) {
+      if (await exists(candidate)) {
+        file = candidate;
+        break;
+      }
+    }
+    if (!file) {
+      warn(`${label}: Now line points to a feature spec that does not exist: ${writtenPath}`);
+      continue;
+    }
+    let status;
+    try {
+      status = (0, import_front_matter.default)(await fs.readFile(file, "utf8")).attributes.status;
+    } catch {
+      continue;
+    }
+    if (status === "done") {
+      error(`${label}: closed feature still listed in Now: ${slug} (remove the line, /code B5)`);
+    }
+  }
+}
 function checkConstitutionSchema(label, attributes, body, sectionsKey) {
   checkVersionAndDate(label, attributes);
   if (!CONSTITUTION_STATUSES.has(attributes.status)) {
@@ -3087,7 +3139,7 @@ async function readFrontmatter(label, file) {
     return null;
   }
 }
-async function validateConstitutionFile(specsDir, name, labelPrefix) {
+async function validateConstitutionFile(specsDir, name, labelPrefix, projectRoot) {
   const file = path.join(specsDir, name);
   if (!await exists(file)) {
     return;
@@ -3099,6 +3151,9 @@ async function validateConstitutionFile(specsDir, name, labelPrefix) {
   }
   const before = errors.length;
   checkConstitutionSchema(label, parsed.attributes, parsed.body, name);
+  if (name === "roadmap.md") {
+    await checkNowLines(label, parsed.body, specsDir, projectRoot);
+  }
   if (errors.length === before) {
     ok(`${label} matches the constitution format`);
   }
@@ -3174,7 +3229,7 @@ function discoverExtraRoadmapPaths(rows, specsDir, projectRoot) {
   }
   return discovered;
 }
-async function validateExtraRoadmapFile(projectRoot, relPath) {
+async function validateExtraRoadmapFile(specsDir, projectRoot, relPath) {
   const file = path.join(projectRoot, relPath);
   const label = relPath;
   if (!await exists(file)) {
@@ -3187,6 +3242,7 @@ async function validateExtraRoadmapFile(projectRoot, relPath) {
   }
   const before = errors.length;
   checkConstitutionSchema(label, parsed.attributes, parsed.body, "roadmap.md");
+  await checkNowLines(label, parsed.body, specsDir, projectRoot);
   if (errors.length === before) {
     ok(`${label} matches the roadmap format`);
   }
@@ -3208,7 +3264,29 @@ async function validateDeclaredRoadmaps(specsDir, projectRoot) {
     return;
   }
   for (const relPath of discoverExtraRoadmapPaths(rows, specsDir, projectRoot)) {
-    await validateExtraRoadmapFile(projectRoot, relPath);
+    await validateExtraRoadmapFile(specsDir, projectRoot, relPath);
+  }
+}
+function checkFeatureCloseout(label, slug, attributes, body) {
+  if (attributes.status === "done") {
+    for (const section of CLOSEOUT_SECTIONS) {
+      if (sectionText(body, section).trim() === PLACEHOLDER_BODY) {
+        error(`${label}: status is done but section '${section}' is still "${PLACEHOLDER_BODY}"`);
+      }
+    }
+    const updated = toDateString(attributes.updated);
+    const review = sectionText(body, "Documentation Review");
+    if (updated && updated >= CI_REVIEW_REQUIRED_FROM && !CI_DECISION_RE.test(review) && !CI_NOT_APPLICABLE_RE.test(review)) {
+      error(
+        `${label}: status is done but Documentation Review has no CI/release decision (add "{file, needs change: yes/no, reason}" per changed or checked file, or "CI review: not applicable (reason)")`
+      );
+    }
+  }
+  if (OPEN_WORK_STATUSES.has(attributes.status)) {
+    const updated = toDateString(attributes.updated);
+    if (updated && (Date.parse(today) - Date.parse(updated)) / DAY_MS > STALLED_AFTER_DAYS) {
+      warn(`${label}: stalled: ${slug} has been ${attributes.status} since ${updated}; finish B3-B5 or say why`);
+    }
   }
 }
 async function validateFeatureFile(specsDir, file, labelPrefix) {
@@ -3237,6 +3315,7 @@ async function validateFeatureFile(specsDir, file, labelPrefix) {
       `${label}: Approach has no "Memory consulted:" line \u2014 grep memory.md for the affected area or tag and record the pattern and what it found (or "none relevant")`
     );
   }
+  checkFeatureCloseout(label, path.basename(file, ".md"), attributes, parsed.body);
   if (errors.length === before) {
     ok(`${label} matches the feature-spec format`);
   }
@@ -3321,14 +3400,15 @@ async function validateMemoryFile(specsDir, labelPrefix) {
     ok(`${label} matches the memory format`);
   }
 }
-async function validateSpecsDir(specsDir, labelPrefix = "specs/", projectRoot = path.dirname(specsDir)) {
+async function validateSpecsDir(specsDir, labelPrefix = "specs/", projectRoot = path.dirname(specsDir), options = {}) {
   errors = [];
   warnings = [];
+  today = options.today ?? currentDate();
   if (!await exists(specsDir)) {
     return { errors, warnings, exists: false };
   }
   for (const name of Object.keys(CONSTITUTION_SECTIONS)) {
-    await validateConstitutionFile(specsDir, name, labelPrefix);
+    await validateConstitutionFile(specsDir, name, labelPrefix, projectRoot);
   }
   await validateDeclaredRoadmaps(specsDir, projectRoot);
   await validateMemoryFile(specsDir, labelPrefix);
@@ -3345,9 +3425,9 @@ async function validateSpecsDir(specsDir, labelPrefix = "specs/", projectRoot = 
   }
   return { errors, warnings, exists: true };
 }
-async function validateSpecs(targetDir) {
+async function validateSpecs(targetDir, options = {}) {
   const specsDir = path.join(targetDir, "specs");
-  const result = await validateSpecsDir(specsDir, "specs/", targetDir);
+  const result = await validateSpecsDir(specsDir, "specs/", targetDir, options);
   if (!result.exists) {
     console.log("No specs/ directory yet \u2014 nothing to validate.");
   }
@@ -3357,10 +3437,15 @@ function parseValidateSpecsArgs() {
   const args = process.argv.slice(2);
   const targetDir = args.find((a) => a.startsWith("--target="))?.split("=")[1] ?? process.cwd();
   const dirArg = args.find((a) => a.startsWith("--dir="))?.split("=")[1];
-  return dirArg ? path.resolve(dirArg) : path.join(path.resolve(targetDir), "specs");
+  const specsDir = dirArg ? path.resolve(dirArg) : path.join(path.resolve(targetDir), "specs");
+  const todayArg = args.find((a) => a.startsWith("--today="))?.split("=")[1] ?? process.env.VALIDATE_SPECS_TODAY;
+  if (todayArg !== void 0 && !DATE_RE.test(todayArg)) {
+    throw new Error(`--today / VALIDATE_SPECS_TODAY must be YYYY-MM-DD (got ${JSON.stringify(todayArg)})`);
+  }
+  return { specsDir, today: todayArg };
 }
 async function main() {
-  const specsDir = parseValidateSpecsArgs();
+  const { specsDir, today: todayOption } = parseValidateSpecsArgs();
   const isShadowRoot = path.basename(path.dirname(specsDir)) === ".agent";
   const labelPrefix = isShadowRoot ? ".agent/specs/" : "specs/";
   const projectRoot = isShadowRoot ? path.dirname(path.dirname(specsDir)) : path.dirname(specsDir);
@@ -3370,7 +3455,8 @@ Validating specs at ${specsDir}...
   const { errors: foundErrors, warnings: foundWarnings, exists: dirExists } = await validateSpecsDir(
     specsDir,
     labelPrefix,
-    projectRoot
+    projectRoot,
+    { today: todayOption }
   );
   if (!dirExists) {
     console.log("Directory does not exist yet \u2014 nothing to validate.");

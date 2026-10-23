@@ -42,6 +42,7 @@ export function parseEditableInstallerArgs(args = process.argv.slice(2)) {
 
 const GUARD_HOOK_FILE = "guard-targets.mjs";
 const GUARD_MODULE_FILE = "target-guard.mjs";
+const CLOSEOUT_HOOK_FILE = "closeout-guard.mjs";
 
 /** Single source of the host-neutral guard logic, and the copies each host ships. */
 export const GUARD_SOURCE = path.join("adapters", "shared", GUARD_MODULE_FILE);
@@ -66,36 +67,54 @@ export async function syncGuardModule() {
 }
 
 /**
- * Remove the agent-tools target guard from a Claude settings object (in
- * place), leaving every other hook alone. Matches on the script's file name.
+ * The Claude hooks agent-tools registers, all handled together: each is added,
+ * copied and removed the same way, and `--no-hooks` skips them all. `modules`
+ * are sibling files the script imports and must be copied along with it.
+ */
+const CLAUDE_HOOKS = [
+  { event: "PreToolUse", matcher: "Bash", file: GUARD_HOOK_FILE, modules: [GUARD_MODULE_FILE], timeout: 10 },
+  { event: "Stop", file: CLOSEOUT_HOOK_FILE, modules: [], timeout: 20 },
+];
+
+/**
+ * Remove the agent-tools hooks (target guard, closeout guard) from a Claude
+ * settings object (in place), leaving every other hook alone. Matches on the
+ * script's file name.
  */
 export function removeGuardHook(settings) {
-  const entries = settings.hooks?.PreToolUse;
-  if (!Array.isArray(entries)) {
-    return settings;
-  }
-
-  settings.hooks.PreToolUse = entries
-    .map(entry => ({
-      ...entry,
-      hooks: (entry.hooks ?? []).filter(hook => !String(hook.command ?? "").includes(GUARD_HOOK_FILE)),
-    }))
-    .filter(entry => entry.hooks.length > 0);
-
-  if (settings.hooks.PreToolUse.length === 0) {
-    delete settings.hooks.PreToolUse;
-  }
-  if (Object.keys(settings.hooks).length === 0) {
-    delete settings.hooks;
+  for (const { event, file } of CLAUDE_HOOKS) {
+    removeHookEntry(settings, event, file);
   }
   return settings;
 }
 
+function removeHookEntry(settings, event, file) {
+  const entries = settings.hooks?.[event];
+  if (!Array.isArray(entries)) {
+    return;
+  }
+
+  settings.hooks[event] = entries
+    .map(entry => ({
+      ...entry,
+      hooks: (entry.hooks ?? []).filter(hook => !String(hook.command ?? "").includes(file)),
+    }))
+    .filter(entry => entry.hooks.length > 0);
+
+  if (settings.hooks[event].length === 0) {
+    delete settings.hooks[event];
+  }
+  if (Object.keys(settings.hooks).length === 0) {
+    delete settings.hooks;
+  }
+}
+
 /**
- * Install or remove the target guard in a Claude settings object, the same way
- * for every Claude installer. `copy: false` (editable) points at the script in
- * this checkout; `copy: true` copies it into `<claudeDir>/hooks` so the
- * install keeps working without the checkout. `noHooks` removes it instead.
+ * Install or remove the agent-tools hooks in a Claude settings object, the same
+ * way for every Claude installer. `copy: false` (editable) points at the
+ * scripts in this checkout; `copy: true` copies them into `<claudeDir>/hooks`
+ * so the install keeps working without the checkout. `noHooks` removes them
+ * instead.
  */
 export async function applyGuardHook(settings, { claudeDir, copy, noHooks }) {
   if (noHooks) {
@@ -103,32 +122,31 @@ export async function applyGuardHook(settings, { claudeDir, copy, noHooks }) {
     return false;
   }
 
-  const source = path.join(ROOT, "adapters", "claude-code", "hooks", GUARD_HOOK_FILE);
-  if (!copy) {
-    addGuardHook(settings, source);
-    return true;
-  }
+  const sourceDir = path.join(ROOT, "adapters", "claude-code", "hooks");
+  for (const hook of CLAUDE_HOOKS) {
+    if (!copy) {
+      addHookEntry(settings, hook, path.join(sourceDir, hook.file));
+      continue;
+    }
 
-  await ensureDir(path.join(claudeDir, "hooks"));
-  await fs.copyFile(source, path.join(claudeDir, "hooks", GUARD_HOOK_FILE));
-  await fs.copyFile(
-    path.join(path.dirname(source), GUARD_MODULE_FILE),
-    path.join(claudeDir, "hooks", GUARD_MODULE_FILE),
-  );
-  addGuardHook(settings, `$CLAUDE_PROJECT_DIR/.claude/hooks/${GUARD_HOOK_FILE}`);
+    await ensureDir(path.join(claudeDir, "hooks"));
+    for (const file of [hook.file, ...hook.modules]) {
+      await fs.copyFile(path.join(sourceDir, file), path.join(claudeDir, "hooks", file));
+    }
+    addHookEntry(settings, hook, `$CLAUDE_PROJECT_DIR/.claude/hooks/${hook.file}`);
+  }
   return true;
 }
 
-/** Register the target guard as a PreToolUse Bash hook. Idempotent. */
-export function addGuardHook(settings, hookFile) {
-  removeGuardHook(settings);
+/** Register one hook (idempotent: any earlier entry for the same script is replaced). */
+function addHookEntry(settings, { event, matcher, file, timeout }, hookFile) {
+  removeHookEntry(settings, event, file);
   settings.hooks = settings.hooks ?? {};
-  settings.hooks.PreToolUse = settings.hooks.PreToolUse ?? [];
-  settings.hooks.PreToolUse.push({
-    matcher: "Bash",
-    hooks: [{ type: "command", command: `node ${JSON.stringify(hookFile)}`, timeout: 10 }],
+  settings.hooks[event] = settings.hooks[event] ?? [];
+  settings.hooks[event].push({
+    ...(matcher ? { matcher } : {}),
+    hooks: [{ type: "command", command: `node ${JSON.stringify(hookFile)}`, timeout }],
   });
-  return settings;
 }
 
 export async function exists(file) {

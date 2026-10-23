@@ -114,7 +114,7 @@ Installed:
   .claude/agents
   .claude/workflows
   .claude/plugins/agent-tools
-  .claude/hooks (target guard; --no-hooks to skip)
+  .claude/hooks (target guard and closeout check; --no-hooks to skip)
   CLAUDE.md
 
 Start Claude Code:

@@ -85,7 +85,37 @@ npm test
 directory (this repo's own, by default) against the `constitution-format`,
 `feature-spec-format`, and `memory-format` skills, not this toolkit's own
 `core/` wiring. Run it after any write under `specs/` — the `/code` command
-does this itself after every such write.
+does this itself after every such write. Besides the formats it enforces
+closeout: an error for a `done` spec still listed in a roadmap `## Now` line
+or with a "Not started." closeout section, and a `stalled:` warning for open
+work not updated in more than 2 days. `--today=YYYY-MM-DD` (or
+`VALIDATE_SPECS_TODAY`) fixes the date for tests. E3: a `done` spec updated on
+or after `CI_REVIEW_REQUIRED_FROM` (2026-10-24, a grandfathering date compared
+with the spec's `updated`, never today) must record its CI/release decision in
+*Documentation Review* (`needs change: yes/no` or a `CI review: not applicable`
+line). After editing `scripts/validate-specs.js`, run `npm run build:validator`.
+
+`adapters/claude-code/hooks/closeout-guard.mjs` is a Claude Code `Stop` hook,
+installed and removed together with the target guard (`applyGuardHook` /
+`removeGuardHook` in `scripts/lib/install-common.js`; `--no-hooks` skips both).
+When git shows changes under the project's `specs/` (or `.agent/specs/`), it
+runs the validator and blocks the stop (exit 2, reason on stderr) only for the
+closeout errors: a closed feature still in `## Now`, a `done` spec with a
+"Not started." section, a `done` spec with no CI/release decision. It never
+blocks when it cannot verify (no git, no validator, `stop_hook_active`), and
+`AGENT_TOOLS_CLOSEOUT=off` disables it. Guarantees (its own limits, not the
+host's; state in `<tmpdir>/agent-tools-closeout/<session>.json`): at most 2
+blocks per session, never the same message twice, at most about 1200 characters
+of feedback (5 error lines of 300 characters, then `(and N more; ...)`), a 10 s
+validator limit inside a 20 s hook timeout, and any failure (unwritable or
+corrupt state, validator timeout or crash) lets the session end. Claude Code
+only: OpenCode and Pi have no equivalent and are not affected. Tests:
+`scripts/closeout-guard.test.js`; keep the caps and the 20 s `timeout` in
+`CLAUDE_HOOKS` in step.
+
+Call-site rule (`/code` ground rules and closeout checklist): every new
+non-test function, type, config key or route needs a non-test call site shown
+as `grep -n` evidence; the coordinator and B3's tester re-run the grep.
 
 ## Tests
 

@@ -79,7 +79,11 @@ These apply throughout, both parts:
   report format. A specialist's summary is a claim: before a step is reported
   as done, check at least one non-trivial claim and that every requested edit
   exists (ask `tester`, or check it directly), and report the check with the
-  result.
+  result. Code that is written and tested but never called is not done: every
+  new non-test function, type, config key or route a specialist reports comes
+  with a non-test call site as `grep -n` evidence (or a stated reason it is
+  intentionally unused). `coordinator` re-runs that grep itself for at least
+  the non-trivial ones, and B3's `tester` repeats it.
 - **Spikes are minimal, isolated, and self-bounding — never monitored into
   safety.** A feasibility check for an unproven mechanism (an external CLI, a
   new provider, a subprocess) tests exactly that one unknown, stripped of any
@@ -99,6 +103,9 @@ These apply throughout, both parts:
   hits its bound has already produced its finding ("this doesn't work
   quickly enough, here's why") — report that once; it is not a prelude to
   trying again silently.
+- **A feature is not done until the closeout checklist ([B5](#b5-documentation-update)
+  step 4) is complete.** Never report "done" earlier, and never leave
+  `status` short of `done` once the work is finished.
 - **A human having to kill a stuck process is not a bug to route around
   afterward — it is exactly the outcome the two rules above exist to
   prevent.** Getting to that point is already a process failure, whether or
@@ -267,6 +274,20 @@ its own checkpoint — those are the routine record of work already approved
 in principle at B1. Within B2 specifically, apply the small-steps ground
 rule even between checkpoints — see there.
 
+### B0. Check for open work
+
+Before starting anything new, list the feature specs under
+`<specs-root>/features/` whose `status` is neither `draft` nor `done` —
+`approved`, `implementing`, `validating`, `documenting` — by reading their
+frontmatter (`validate-specs` also warns about `stalled:` ones). Tell the
+user, plainly, which are open, their status and `updated` date, and whether
+a `## Now` line still points at them. Then either resume one (its `status`
+says which phase to pick up at, see above) or close it out through B3–B5;
+don't ignore it and start something else. If the user says an open spec is
+abandoned, say so in the spec, send `status` back per the
+`constitution-format` skill's `## Now` lifecycle, and remove its `## Now`
+line. When nothing is open, say that in one line and continue to B1.
+
 ### B1. Feature specification
 
 1. `researcher` gathers the context needed: affected files, modules, and
@@ -402,7 +423,9 @@ rule even between checkpoints — see there.
    suite: a skipped test is unverified, so it finds out why the test skipped
    and runs it with the dependency the project provides for testing; a green
    run with silent skips is not validation. It also runs the real artifact
-   once against realistic input (see the `testing-playbook` skill).
+   once against realistic input (see the `testing-playbook` skill), and
+   repeats the call-site grep for the new functions, types and config keys
+   (see *Briefs and verification*).
 2. On failure: grep `memory.md` for `[gotcha]` entries mentioning the
    failing command first — it may be a known issue with a known cause.
    Then, back to [B2](#b2-feature-implementation) to fix forward
@@ -417,7 +440,7 @@ rule even between checkpoints — see there.
 
 The review is executed, not proposed: routine documentation fixes (README,
 `CHANGELOG.md`, spec sections) are applied without a checkpoint, and only
-constitution changes wait for approval (step 2). Give `technical-writer` the
+constitution changes wait for approval (step 3). Give `technical-writer` the
 numbered list of edits and the facts to verify, and check its report against
 the files (see *Briefs and verification* in the ground rules).
 
@@ -466,10 +489,39 @@ the files (see *Briefs and verification* in the ground rules).
      `{changelog path, category, proposed entry text}` per affected
      artifact — this is exactly what B5 consumes, without re-deriving
      anything.
-2. If drift touches a constitution file, that's replanning too: run
+2. **CI, build and release configuration.** For each *Affected Areas* path,
+   find every CI workflow, Dockerfile, build or task-runner file, deploy
+   manifest, and release script that builds, tests, versions, or releases
+   that artifact — resolved with the same artifact mapping as step 1,
+   including the consumers named by the Artifacts table's `Built from:` note
+   (a shared module's consumers are in scope even though no path under their
+   own root changed). Read each file and decide, with evidence (file and
+   line), whether the feature needs a change there:
+   - a new build step, test command, or test environment;
+   - path filters that must cover the changed directory **and every consumed
+     directory** — a change to a shared module must trigger every consumer's
+     build and release;
+   - build outputs that are gitignored, so a clean checkout lacks them (CI
+     builds from a clean checkout; a local run that passes on leftovers
+     proves nothing);
+   - new environment variables or secrets;
+   - version or changelog stamping that the new behavior depends on.
+
+   Record each decision in *Documentation Review* as
+   `{file, needs change: yes/no, reason}` — "no" needs a reason too — and
+   apply the needed changes before B5. If no CI, build or release file
+   covers the affected paths at all, write one line starting
+   `CI review: not applicable (reason)` instead. `validate-specs` rejects a
+   `done` spec with neither form (E3). A CI or release change is outward and
+   hard to reverse: follow the git and delivery ground rules (draft it, show
+   the actual text, never push). When releases run automatically on push,
+   the push **is** the release, so before asking for delivery approval run
+   the project's local CI-parity check — or the exact CI commands on a clean
+   copy of the tree — and report the result.
+3. If drift touches a constitution file, that's replanning too: run
    [Updating an approved file](#updating-an-approved-file) for it, gated by
    the human like any other constitution change.
-3. Record findings in *Documentation Review*, set `status: documenting`, run
+4. Record findings in *Documentation Review*, set `status: documenting`, run
    `validate-specs`.
 
 ### B5. Documentation update
@@ -502,7 +554,26 @@ the files (see *Briefs and verification* in the ground rules).
    maintenance rules — autonomous, no approval gate, but relay its report
    (entries before/after, what was removed and why) to the human in the
    delivery summary below.
-4. Set `status: done`, run `validate-specs`.
+4. **Closeout checklist.** Every item must be true before `status: done` and
+   before the delivery summary; if one is not, finish it first:
+   - [ ] *Validation* is recorded with pass, skip, and fail counts, and every
+     skip is explained (B3).
+   - [ ] README, other docs, and every changelog B4 resolved are updated,
+     with each entry in the right file's `## [Unreleased]` (B4 step 1 and
+     B5 step 1).
+   - [ ] This feature's `## Now` line is removed from every roadmap file it
+     was added to in B2.
+   - [ ] The CI and release review is recorded in *Documentation Review*
+     (B4 step 2), and the changes it required are applied. E3 enforces it.
+   - [ ] every new function, type or config key has a non-test use (grep
+     evidence).
+   - [ ] `validate-specs` passes — its errors for a `done` spec still
+     listed in a `## Now` line, and for a `done` spec with "Not started."
+     sections, enforce part of this list.
+
+   Then set `status: done` and run `validate-specs`. The delivery summary
+   (step 6) lists each checklist item with its evidence: the file, the
+   counts, the command output.
 5. Draft the commit message (and PR description, if this is going through a
    PR) for the human to review — per the git ground rule, this is a draft
    to approve, never an action taken on its own.
